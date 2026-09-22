@@ -1,7 +1,6 @@
-create extension if not exists "uuid-ossp";
 
 create table if not exists public.officers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   first_name text,
   last_name text,
   email text,
@@ -14,7 +13,7 @@ create table if not exists public.officers (
 );
 
 create table if not exists public.sites (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
   officer_uid uuid not null references public.officers(id) on delete cascade,
@@ -22,7 +21,7 @@ create table if not exists public.sites (
 );
 
 create table if not exists public.workers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   first_name text,
   last_name text,
   email text,
@@ -38,7 +37,7 @@ create table if not exists public.workers (
 );
 
 create table if not exists public.hse_workers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   first_name text,
   last_name text,
   email text,
@@ -54,7 +53,7 @@ create table if not exists public.hse_workers (
 );
 
 create table if not exists public.hazards (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   worker_id uuid references public.workers(id) on delete set null,
   hazard_type text not null,
   description text,
@@ -74,7 +73,7 @@ create table if not exists public.hazards (
 );
 
 create table if not exists public.assign_hazards (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   worker_id uuid references public.workers(id) on delete set null,
   hazard_type text not null,
   description text,
@@ -100,7 +99,7 @@ create table if not exists public.assign_hazards (
 );
 
 create table if not exists public.resolved_hazards (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   worker_id uuid references public.workers(id) on delete set null,
   hazard_type text not null,
   description text,
@@ -126,7 +125,7 @@ create table if not exists public.resolved_hazards (
 );
 
 create table if not exists public.user_fcm_tokens (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
   fcm_token text not null,
   created_at timestamptz not null default now(),
@@ -134,7 +133,7 @@ create table if not exists public.user_fcm_tokens (
 );
 
 create table if not exists public.officer_emergency_contacts (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   officer_id uuid references public.officers(id) on delete cascade,
   officer_uid uuid references public.officers(id) on delete cascade,
   contact_name text,
@@ -156,7 +155,7 @@ create table if not exists public.officer_emergency_contacts (
 );
 
 create table if not exists public.site_alerts (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   reporter_uid uuid not null references auth.users(id) on delete cascade,
   alert_type text not null,
   message text not null,
@@ -164,7 +163,7 @@ create table if not exists public.site_alerts (
 );
 
 create table if not exists public.error_logs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete set null,
   error_message text not null,
   stack_trace text,

@@ -1,5 +1,5 @@
 create table if not exists public.hazard_notification_deliveries (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   hazard_id uuid not null,
   recipient_id uuid not null references auth.users(id) on delete cascade,
   notification_type text not null

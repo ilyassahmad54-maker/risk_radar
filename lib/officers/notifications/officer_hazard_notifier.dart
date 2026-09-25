@@ -524,27 +524,11 @@ class OfficerHazardNotifier extends ChangeNotifier {
     _currentOfficerAuthId = officerAuthId;
     await _loadPersistedNotifiedHazards();
 
-    try {
-      final officerData = await supabase
-          .from('officers')
-          .select('officer_uid')
-          .eq('id', officerAuthId)
-          .single();
+    // Related hazard records store officers.id in their officer_uid column.
+    // officers.id is the authenticated contractor UUID.
+    _customOfficerUid = officerAuthId;
 
-      _customOfficerUid = officerData['officer_uid']?.toString();
-    } catch (e) {
-      debugPrint('❌ Failed to fetch custom officer_uid for $officerAuthId: $e');
-      _customOfficerUid = null;
-    }
-
-    if (_customOfficerUid == null) {
-      debugPrint(
-        '❌ Custom officer ID (officer_uid) not found in officers table.',
-      );
-      return;
-    }
-
-    debugPrint('✅ Using custom officer_uid: $_customOfficerUid');
+    debugPrint('✅ Using officer id for hazard monitoring: $_customOfficerUid');
 
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {

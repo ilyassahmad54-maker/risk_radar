@@ -163,7 +163,7 @@ class _WorkersListScreenState extends State<WorkersListScreen>
     try {
       final officer = await Supabase.instance.client
           .from('officers')
-          .select('officer_uid')
+          .select('id')
           .eq('id', userId)
           .maybeSingle();
 
@@ -175,7 +175,9 @@ class _WorkersListScreenState extends State<WorkersListScreen>
         return;
       }
 
-      final officerUid = officer['officer_uid'];
+      // workers.officer_uid and hse_workers.officer_uid reference
+      // officers.id, so use the authenticated officer's profile ID.
+      final officerUid = officer['id'] as String;
       _listenForTeamChanges(officerUid);
 
       final responses = await Future.wait([
@@ -366,7 +368,16 @@ class _WorkersListScreenState extends State<WorkersListScreen>
     }
   }
 
-  void _showChangeSiteSheet(Map<String, dynamic> worker, String tableName) {
+  Future<void> _showChangeSiteSheet(
+    Map<String, dynamic> worker,
+    String tableName,
+  ) async {
+    // Always refresh sites before showing the assignment sheet so newly
+    // created sites are immediately available.
+    await _fetchSites(forceRefresh: true);
+
+    if (!mounted) return;
+
     final currentSiteId = worker['sites']?['id'];
     dynamic selectedSiteId = currentSiteId;
 

@@ -27,7 +27,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _officerUIDController = TextEditingController();
+  String? _selectedContractorId;
+  String? _selectedContractorName;
 
   String? _role;
   String? _workType;
@@ -95,7 +96,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
-    _officerUIDController.dispose();
     super.dispose();
   }
 
@@ -448,31 +448,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             '${_birthYear!}-${monthIndex.toString().padLeft(2, '0')}-${_birthDay!.padLeft(2, '0')}';
       }
 
-      // Safe parse
-      int? officerUid = int.tryParse(_officerUIDController.text.trim());
       if (_role == _workerRole || _role == _safetyRole) {
-        if (officerUid == null) {
+        if (_selectedContractorId == null) {
           await _showContractorUidDialog(
-            title: 'Contractor UID required',
+            title: 'Contractor required',
             message:
-                'Enter the contractor UID given by your contractor before continuing.',
-            icon: Icons.badge_outlined,
-          );
-          if (mounted) setState(() => _isSaving = false);
-          return;
-        }
-
-        final contractor = await Supabase.instance.client
-            .from('officers')
-            .select('id, first_name, last_name, officer_uid')
-            .eq('officer_uid', officerUid)
-            .maybeSingle();
-
-        if (contractor == null) {
-          await _showContractorUidDialog(
-            title: 'No contractor found',
-            message:
-                'We could not find a contractor assigned to UID $officerUid. Please check the UID and try again.',
+                'Please select your contractor before continuing.',
             icon: Icons.person_search_rounded,
           );
           if (mounted) setState(() => _isSaving = false);
@@ -499,13 +480,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (_role == _workerRole) {
         await Supabase.instance.client.from('workers').insert({
           ...data,
-          'officer_uid': officerUid,
+          'officer_uid': _selectedContractorId,
           'work_type': _workType,
         });
       } else if (_role == _safetyRole) {
         await Supabase.instance.client.from('hse_workers').insert({
           ...data,
-          'officer_uid': officerUid,
+          'officer_uid': _selectedContractorId,
           'designation': _hseDesignation,
         });
       } else {
@@ -514,11 +495,100 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _showMessage('✅ Profile saved!');
       setState(() => _isProfileSaved = true);
       _navigateToHomeScreen();
-    } catch (e) {
-      debugPrint('Profile setup save failed: $e');
+    } catch (e, stackTrace) {
+      debugPrint('════════ PROFILE SETUP SAVE FAILED ════════');
+      debugPrint('ERROR TYPE: ${e.runtimeType}');
+      debugPrint('ERROR: $e');
+      debugPrint('STACK TRACE: $stackTrace');
+      debugPrint('════════════════════════════════════════════');
       _showMessage('Could not save profile. Please try again.', isError: true);
     }
     setState(() => _isSaving = false);
+  }
+
+  Future<void> _selectContractor() async {
+    try {
+      final contractors = await Supabase.instance.client
+          .from('officers')
+          .select('id, first_name, last_name, email')
+          .order('first_name');
+
+      if (!mounted) return;
+
+      final List<Map<String, dynamic>> contractorList =
+          List<Map<String, dynamic>>.from(contractors);
+
+      if (contractorList.isEmpty) {
+        await _showContractorUidDialog(
+          title: 'No contractors found',
+          message:
+              'No contractor profiles are available yet. Please ask your contractor to create their account first.',
+          icon: Icons.person_search_rounded,
+        );
+        return;
+      }
+
+      final selected = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Select Contractor'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: contractorList.length,
+                itemBuilder: (context, index) {
+                  final contractor = contractorList[index];
+                  final firstName =
+                      (contractor['first_name'] ?? '').toString().trim();
+                  final lastName =
+                      (contractor['last_name'] ?? '').toString().trim();
+                  final email = (contractor['email'] ?? '').toString().trim();
+
+                  final name = '$firstName $lastName'.trim();
+                  final displayName =
+                      name.isEmpty ? 'Unnamed Contractor' : name;
+
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person_outline),
+                    ),
+                    title: Text(displayName),
+                    subtitle: email.isEmpty ? null : Text(email),
+                    onTap: () => Navigator.pop(dialogContext, contractor),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      );
+
+      if (selected != null && mounted) {
+        setState(() {
+          _selectedContractorId = selected['id']?.toString();
+          final firstName = (selected['first_name'] ?? '').toString().trim();
+          final lastName = (selected['last_name'] ?? '').toString().trim();
+          final name = '$firstName $lastName'.trim();
+          _selectedContractorName =
+              name.isEmpty ? 'Unnamed Contractor' : name;
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('════════ CONTRACTOR SELECTION FAILED ════════');
+      debugPrint('ERROR TYPE: ${e.runtimeType}');
+      debugPrint('ERROR: $e');
+      debugPrint('STACK TRACE: $stackTrace');
+      debugPrint('══════════════════════════════════════════════');
+
+      if (mounted) {
+        _showMessage(
+          'Could not load contractors. Please try again.',
+          isError: true,
+        );
+      }
+    }
   }
 
   Future<void> _showContractorUidDialog({
@@ -854,17 +924,56 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       _role = value;
                       _workType = null;
                       _hseDesignation = null;
-                      _officerUIDController.clear();
+                      _selectedContractorId = null;
+                      _selectedContractorName = null;
                     });
                   }, Icons.work_outline),
 
                   if (hasRoleDetails) ...[
                     SizedBox(height: fieldGap),
-                    _buildCustomTextField(
-                      _officerUIDController,
-                      "Contractor UID",
-                      Icons.badge_outlined,
-                      type: TextInputType.number,
+                    InkWell(
+                      onTap: _selectContractor,
+                      borderRadius: BorderRadius.circular(size.width * 0.077),
+                      child: Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: size.width * 0.038,
+                          vertical: visibleHeight * 0.018,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius:
+                              BorderRadius.circular(size.width * 0.077),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.badge_outlined,
+                              color: const Color(0xFF1B3D3D),
+                              size: size.width * 0.056,
+                            ),
+                            SizedBox(width: size.width * 0.050),
+                            Expanded(
+                              child: Text(
+                                _selectedContractorName ??
+                                    'Select Contractor',
+                                style: TextStyle(
+                                  color: _selectedContractorName == null
+                                      ? Colors.grey.shade500
+                                      : const Color(0xFF1B3D3D),
+                                  fontSize: size.width * 0.033,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Colors.grey.shade500,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     SizedBox(height: fieldGap),
                     _buildCustomDropdown(

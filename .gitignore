@@ -53,3 +53,16 @@ app.*.map.json
 
 # Supabase CLI local metadata
 supabase/.temp/
+
+# Local Supabase development config
+supabase.local.json
+
+# Local Supabase configuration / backups
+supabase.local.json
+supabase.local.json.save
+
+# Generated Android build reports
+android/build/reports/
+
+# Local VS Code settings
+.vscode/

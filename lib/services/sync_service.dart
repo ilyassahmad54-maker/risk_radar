@@ -185,6 +185,9 @@ class SyncService {
             : table == 'assign_hazards'
             ? 'resolutions'
             : 'hazard-images',
+        prefix: isProfileTable
+            ? _supabase.auth.currentUser?.id
+            : null,
       );
       dbPayload[isProfileTable
           ? 'profile_image_url'

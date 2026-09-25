@@ -560,12 +560,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _handleDeepLink(Uri uri) async {
     try {
-      final res = await Supabase.instance.client.auth.getSessionFromUrl(uri);
-      if (mounted) {
-        final session = res.session;
-        setState(() => _session = session);
-        await _initializeUser(session.user.id, isBackground: false);
-      }
+      debugPrint('🔗 [DeepLink] Auth callback received: $uri');
+      debugPrint('🔐 [DeepLink] Letting Supabase auth state listener handle the session.');
     } catch (e) {
       debugPrint('⚠️ [DeepLink] Handle error: $e');
     }

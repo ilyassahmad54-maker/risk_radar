@@ -131,6 +131,7 @@ class _SignupScreenState extends State<SignupScreen> {
           .signUp(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
+            emailRedirectTo: 'hazardreporter://login-callback',
           )
           .timeout(
             const Duration(seconds: 15),

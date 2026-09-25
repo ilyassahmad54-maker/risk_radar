@@ -68,6 +68,9 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen>
   int _selectedIndex = 0;
   final cache = OfficerDashboardCache();
 
+  final GlobalKey<OfficerSitesScreenState> _sitesKey =
+      GlobalKey<OfficerSitesScreenState>();
+
   @override
   void initState() {
     super.initState();
@@ -89,8 +92,20 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen>
   }
 
   void _onItemTapped(int index) {
-    if (_selectedIndex == index) return;
+    if (_selectedIndex == index) {
+      if (index == 2) {
+        _sitesKey.currentState?.refresh();
+      }
+      return;
+    }
+
     setState(() => _selectedIndex = index);
+
+    if (index == 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _sitesKey.currentState?.refresh();
+      });
+    }
     _curveAnimation =
         Tween<double>(
           begin: _curveAnimation.value,
@@ -559,7 +574,7 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen>
   List<Widget> get _screens => [
     _dashboardBody(),
     const WorkersListScreen(),
-    const OfficerSitesScreen(),
+    OfficerSitesScreen(key: _sitesKey),
     const ViewAssignedHazardsScreen(),
     AppSettingsScreen(
       onAboutTap: _onAboutTap,

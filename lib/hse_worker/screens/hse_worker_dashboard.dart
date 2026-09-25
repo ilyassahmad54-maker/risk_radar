@@ -267,9 +267,16 @@ class _HSEWorkerHomeScreenState extends State<HSEWorkerHomeScreen>
                     .maybeSingle()
               : Future.value(null);
 
-          final Future<dynamic> personnelFuture = siteId != null
+          final Future<dynamic> workerCountFuture = siteId != null
               ? supabase
                     .from('workers')
+                    .count(CountOption.exact)
+                    .eq('current_site_id', siteId)
+              : Future.value(0);
+
+          final Future<dynamic> hseCountFuture = siteId != null
+              ? supabase
+                    .from('hse_workers')
                     .count(CountOption.exact)
                     .eq('current_site_id', siteId)
               : Future.value(0);
@@ -278,19 +285,22 @@ class _HSEWorkerHomeScreenState extends State<HSEWorkerHomeScreen>
               ? supabase
                     .from('officers')
                     .select('id, first_name, last_name')
-                    .eq('officer_uid', officerUid)
+                    .eq('id', officerUid)
                     .maybeSingle()
               : Future.value(null);
 
           final secondBatch = await Future.wait([
             siteFuture,
-            personnelFuture,
+            workerCountFuture,
+            hseCountFuture,
             officerFuture,
           ]).timeout(const Duration(seconds: 15));
 
           final site = secondBatch[0] as Map<String, dynamic>?;
-          final personnelCount = (secondBatch[1] as int?) ?? 0;
-          final officer = secondBatch[2] as Map<String, dynamic>?;
+          final workerCount = (secondBatch[1] as int?) ?? 0;
+          final hseCount = (secondBatch[2] as int?) ?? 0;
+          final personnelCount = workerCount + hseCount;
+          final officer = secondBatch[3] as Map<String, dynamic>?;
 
           int resolvedTeamCount = 0;
           if (officer != null) {

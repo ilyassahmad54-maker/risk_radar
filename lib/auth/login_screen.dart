@@ -237,7 +237,10 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+          email,
+          redirectTo: 'hazardreporter://login-callback',
+        );
       // ✅ SECURITY: Same message whether email exists or not
       _showSnackBar(
         'If this email is registered, a reset link has been sent.',

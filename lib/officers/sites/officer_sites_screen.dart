@@ -14,14 +14,14 @@ class OfficerSitesScreen extends StatefulWidget {
   const OfficerSitesScreen({super.key});
 
   @override
-  State<OfficerSitesScreen> createState() => _OfficerSitesScreenState();
+  State<OfficerSitesScreen> createState() => OfficerSitesScreenState();
 }
 
-class _OfficerSitesScreenState extends State<OfficerSitesScreen> {
+class OfficerSitesScreenState extends State<OfficerSitesScreen> {
   final supabase = Supabase.instance.client;
   final SyncRepository _syncRepository = SyncRepository();
   late Future<List<Map<String, dynamic>>> _sitesFuture;
-  int? _numericOfficerUid;
+  String? _officerId;
 
   @override
   void initState() {
@@ -33,27 +33,13 @@ class _OfficerSitesScreenState extends State<OfficerSitesScreen> {
   }
 
   Future<void> _initializeAndFetchData() async {
-    await _fetchNumericOfficerUid();
+    _officerId = supabase.auth.currentUser?.id;
     await _fetchSites();
   }
 
-  Future<void> _fetchNumericOfficerUid() async {
-    try {
-      final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final response = await supabase
-          .from('officers')
-          .select('officer_uid')
-          .eq('id', userId)
-          .single();
-
-      if (mounted) {
-        _numericOfficerUid = response['officer_uid'];
-      }
-    } catch (e) {
-      debugPrint("Error fetching numeric officer UID: $e");
-    }
+  Future<void> refresh() async {
+    _officerId ??= supabase.auth.currentUser?.id;
+    await _fetchSites(bypassCache: true);
   }
 
   Future<void> _fetchSites({bool bypassCache = false}) async {
@@ -62,7 +48,7 @@ class _OfficerSitesScreenState extends State<OfficerSitesScreen> {
     }
     final bool liveOnly = bypassCache && ConnectivityService.instance.isOnline;
 
-    if (_numericOfficerUid == null) {
+    if (_officerId == null) {
       final cached = liveOnly
           ? <Map<String, dynamic>>[]
           : OfficerRepository.instance.getOfficerSites() ?? [];
@@ -79,7 +65,7 @@ class _OfficerSitesScreenState extends State<OfficerSitesScreen> {
         .select(
           '*, workers!current_site_id(count), hse_workers!current_site_id(count)',
         )
-        .eq('officer_uid', _numericOfficerUid!)
+        .eq('officer_uid', _officerId!)
         .order('name', ascending: true)
         .then((data) async {
           final rows = List<Map<String, dynamic>>.from(data);
@@ -318,7 +304,7 @@ class _OfficerSitesScreenState extends State<OfficerSitesScreen> {
                               'description': siteDescription,
                             });
                           } else {
-                            if (_numericOfficerUid == null) {
+                            if (_officerId == null) {
                               throw Exception(
                                 "Cannot create site: Officer identifier is missing.",
                               );
@@ -326,7 +312,7 @@ class _OfficerSitesScreenState extends State<OfficerSitesScreen> {
                             final payload = {
                               'name': siteName,
                               'description': siteDescription,
-                              'officer_uid': _numericOfficerUid!,
+                              'officer_uid': _officerId!,
                             };
                             final inserted = await supabase
                                 .from('sites')
@@ -359,9 +345,9 @@ class _OfficerSitesScreenState extends State<OfficerSitesScreen> {
                             'id': localId,
                             'name': siteName,
                             'description': siteDescription,
-                            ...?(_numericOfficerUid == null
+                            ...?(_officerId == null
                                 ? null
-                                : {'officer_uid': _numericOfficerUid}),
+                                : {'officer_uid': _officerId}),
                           };
                           await _syncRepository.enqueueAction(
                             id: 'officer_site_${isEditing ? 'update' : 'insert'}_${localId}_${DateTime.now().millisecondsSinceEpoch}',

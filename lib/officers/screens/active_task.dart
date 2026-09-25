@@ -192,23 +192,9 @@ class _ViewAssignedHazardsScreenState extends State<ViewAssignedHazardsScreen> {
     try {
       final int pageStart = _currentPage * _pageSize;
       final int pageEnd = pageStart + _pageSize - 1;
-      final officerProfile = await supabase
-          .from('officers')
-          .select('officer_uid')
-          .eq('id', currentUserId)
-          .single();
-
-      final officerUid = officerProfile['officer_uid']?.toString();
-      if (officerUid == null) {
-        if (mounted) {
-          setState(() {
-            allHazards = [];
-            filteredHazards = [];
-            _availableSites = [];
-          });
-        }
-        return;
-      }
+      // Related tables use officers.id as their officer_uid foreign key.
+      // The authenticated contractor's UID is the officers.id value.
+      final officerUid = currentUserId;
       _listenForHazardChanges(officerUid);
 
       // Fetch available sites for filtering
@@ -1160,8 +1146,9 @@ class _HazardCard extends StatelessWidget {
     if (t.contains('explosion') || t.contains('explosive')) {
       return 'assets/hazards/explosion.svg';
     }
-    if (t.contains('freeze') || t.contains('ice'))
+    if (t.contains('freeze') || t.contains('ice')) {
       return 'assets/hazards/freeze.svg';
+    }
     if (t.contains('lift') || t.contains('load')) {
       return 'assets/hazards/load_lifting.svg';
     }

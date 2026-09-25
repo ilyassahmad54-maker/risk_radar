@@ -110,7 +110,9 @@ class _AssignTaskScreenState extends State<AssignTaskScreen> {
           .from('hse_workers')
           .select('id, first_name, last_name, profile_image_url, designation')
           .eq('current_site_id', widget.siteId)
-          .eq('role', 'HSE Worker');
+          .eq('role', 'hse_worker')
+          .eq('is_active', true)
+          .eq('is_available', true);
 
       final workerList = List<Map<String, dynamic>>.from(workersResponse);
       if (workerList.isEmpty) {

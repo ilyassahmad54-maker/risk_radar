@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 // ✅ IMPORT YOUR APP COLORS
 import 'package:riskradar/shared/theme/app_colors.dart';
+import 'package:riskradar/officers/settings/assigned_tasks_screen.dart';
 
 // --- A fully functional, swipeable fullscreen image viewer ---
 class FullscreenImageViewer extends StatefulWidget {
@@ -452,6 +453,40 @@ class _HazardDetailsScreenState extends State<HazardDetailsScreen> {
               formatAssignedTimestamp: _formatToLocalTime,
               getStatusColor: _getStatusColor,
             ),
+            SizedBox(height: visibleHeight * 0.015),
+
+            if (hazardData['id'] != null &&
+                hazardData['sites']?['id'] != null)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.brandTeal,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      vertical: visibleHeight * 0.016,
+                    ),
+                  ),
+                  icon: const Icon(Icons.assignment_ind_outlined),
+                  label: const Text('Assign Inspector'),
+                  onPressed: () async {
+                    final result = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AssignTaskScreen(
+                          hazardId: hazardData['id'].toString(),
+                          siteId: hazardData['sites']['id'].toString(),
+                        ),
+                      ),
+                    );
+
+                    if (result == true && context.mounted) {
+                      Navigator.pop(context, true);
+                    }
+                  },
+                ),
+              ),
+
             SizedBox(height: visibleHeight * 0.020),
           ],
         ),

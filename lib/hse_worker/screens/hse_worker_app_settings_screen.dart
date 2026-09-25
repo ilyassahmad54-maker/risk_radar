@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'hse_worker_sites_screen.dart';
 import 'hse_worker_view_profile_screen.dart';
 import 'hse_worker_emergency_details_screen.dart';
+import 'package:riskradar/shared/services/logout_service.dart';
 
 class HSEWorkerAppSettingsScreen extends StatefulWidget {
   final void Function(BuildContext) onAboutTap;
@@ -177,7 +178,7 @@ class _HSEWorkerAppSettingsScreenState
       try {
         _showInfoSnackBar('Logging out...');
 
-        await Supabase.instance.client.auth.signOut();
+        await LogoutService.signOut();
 
         if (context.mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
@@ -221,12 +222,11 @@ class _HSEWorkerAppSettingsScreenState
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: size.width * 0.040,
-            ).copyWith(
-              top: visibleHeight * 0.010,
-              bottom: visibleHeight * 0.135,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: size.width * 0.040)
+                .copyWith(
+                  top: visibleHeight * 0.010,
+                  bottom: visibleHeight * 0.135,
+                ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[

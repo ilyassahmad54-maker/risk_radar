@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:riskradar/utils/responsive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:riskradar/shared/theme/app_colors.dart';
+import 'package:riskradar/shared/services/logout_service.dart';
 
 // Import your existing screens
 import 'officer_emergency_details_screen.dart';
@@ -136,7 +137,7 @@ class AppSettingsScreen extends StatelessWidget {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Logging out...')));
-        await Supabase.instance.client.auth.signOut();
+        await LogoutService.signOut();
         if (context.mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         }

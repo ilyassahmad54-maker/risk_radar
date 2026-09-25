@@ -417,20 +417,16 @@ class _SharedEmergencySOSScreenState extends State<SharedEmergencySOSScreen>
       };
 
       if (widget.isOfficer && widget.currentSiteId == null) {
-        final officer = await supabase
-            .from('officers')
-            .select('officer_uid')
-            .eq('id', user.id)
-            .maybeSingle();
-        final officerUid = officer?['officer_uid'];
-        final sites = officerUid == null
-            ? <Map<String, dynamic>>[]
-            : List<Map<String, dynamic>>.from(
-                await supabase
-                    .from('sites')
-                    .select('id')
-                    .eq('officer_uid', officerUid),
-              );
+        // sites.officer_uid references officers.id. For a contractor,
+        // the authenticated user UUID is therefore the managed-site owner ID.
+        final officerUid = user.id;
+
+        final sites = List<Map<String, dynamic>>.from(
+          await supabase
+              .from('sites')
+              .select('id')
+              .eq('officer_uid', officerUid),
+        );
 
         if (sites.isEmpty) {
           throw StateError('No managed sites found for this contractor.');

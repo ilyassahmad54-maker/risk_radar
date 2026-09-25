@@ -10,7 +10,8 @@ import 'package:riskradar/hse_worker/screens/hse_worker_dashboard.dart';
 import 'package:riskradar/workers/screens/worker_home_screen.dart';
 import 'package:riskradar/shared/security/input_sanitizer.dart';
 import 'package:riskradar/shared/utils/profile_photo_permission.dart';
-import 'package:riskradar/shared/widgets/risk_radar_loader.dart'; // ✅ Import Added
+import 'package:riskradar/shared/widgets/risk_radar_loader.dart';
+import 'package:riskradar/shared/services/logout_service.dart'; // ✅ Import Added
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -334,7 +335,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
     setState(() => _isSaving = true);
     try {
-      await Supabase.instance.client.auth.signOut();
+      await LogoutService.signOut();
       await AuthRepository().clearAll();
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
@@ -452,8 +453,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         if (_selectedContractorId == null) {
           await _showContractorUidDialog(
             title: 'Contractor required',
-            message:
-                'Please select your contractor before continuing.',
+            message: 'Please select your contractor before continuing.',
             icon: Icons.person_search_rounded,
           );
           if (mounted) setState(() => _isSaving = false);
@@ -540,15 +540,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 itemCount: contractorList.length,
                 itemBuilder: (context, index) {
                   final contractor = contractorList[index];
-                  final firstName =
-                      (contractor['first_name'] ?? '').toString().trim();
-                  final lastName =
-                      (contractor['last_name'] ?? '').toString().trim();
+                  final firstName = (contractor['first_name'] ?? '')
+                      .toString()
+                      .trim();
+                  final lastName = (contractor['last_name'] ?? '')
+                      .toString()
+                      .trim();
                   final email = (contractor['email'] ?? '').toString().trim();
 
                   final name = '$firstName $lastName'.trim();
-                  final displayName =
-                      name.isEmpty ? 'Unnamed Contractor' : name;
+                  final displayName = name.isEmpty
+                      ? 'Unnamed Contractor'
+                      : name;
 
                   return ListTile(
                     leading: const CircleAvatar(
@@ -571,8 +574,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           final firstName = (selected['first_name'] ?? '').toString().trim();
           final lastName = (selected['last_name'] ?? '').toString().trim();
           final name = '$firstName $lastName'.trim();
-          _selectedContractorName =
-              name.isEmpty ? 'Unnamed Contractor' : name;
+          _selectedContractorName = name.isEmpty ? 'Unnamed Contractor' : name;
         });
       }
     } catch (e, stackTrace) {
@@ -942,8 +944,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade50,
-                          borderRadius:
-                              BorderRadius.circular(size.width * 0.077),
+                          borderRadius: BorderRadius.circular(
+                            size.width * 0.077,
+                          ),
                           border: Border.all(color: Colors.grey.shade200),
                         ),
                         child: Row(
@@ -956,8 +959,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             SizedBox(width: size.width * 0.050),
                             Expanded(
                               child: Text(
-                                _selectedContractorName ??
-                                    'Select Contractor',
+                                _selectedContractorName ?? 'Select Contractor',
                                 style: TextStyle(
                                   color: _selectedContractorName == null
                                       ? Colors.grey.shade500

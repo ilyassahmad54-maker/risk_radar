@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:riskradar/shared/theme/app_colors.dart';
 import '../settings/worker_sites_screen.dart';
 import '../settings/worker_emergency_details_screen.dart';
+import 'package:riskradar/shared/services/logout_service.dart';
 
 class WorkerAppSettingsScreen extends StatelessWidget {
   final void Function(BuildContext) onAboutTap;
@@ -170,7 +171,7 @@ class WorkerAppSettingsScreen extends StatelessWidget {
     if (confirm == true && context.mounted) {
       try {
         _showInfoSnackBar(context, 'Logging out...');
-        await Supabase.instance.client.auth.signOut();
+        await LogoutService.signOut();
 
         if (context.mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);

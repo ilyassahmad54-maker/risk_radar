@@ -483,12 +483,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final roleTable = _tableForRole(_userRole!);
 
     try {
-      debugPrint('🔑 [FCM][Role $_userRole] Token for $userId: $token');
+      debugPrint(
+        '🔑 [FCM][Role $_userRole] Registering device token for $userId',
+      );
+
       await Future.wait([
-        client.from('user_fcm_tokens').upsert({
-          'user_id': userId,
-          'fcm_token': token,
-        }, onConflict: 'user_id'),
+        client.rpc('register_fcm_token', params: {'p_token': token}),
         if (roleTable != null)
           client.from(roleTable).update({'fcm_token': token}).eq('id', userId),
       ]);
@@ -561,7 +561,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _handleDeepLink(Uri uri) async {
     try {
       debugPrint('🔗 [DeepLink] Auth callback received: $uri');
-      debugPrint('🔐 [DeepLink] Letting Supabase auth state listener handle the session.');
+      debugPrint(
+        '🔐 [DeepLink] Letting Supabase auth state listener handle the session.',
+      );
     } catch (e) {
       debugPrint('⚠️ [DeepLink] Handle error: $e');
     }

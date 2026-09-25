@@ -89,7 +89,7 @@ Future<void> _initializeForegroundPushNotifications() async {
   final androidPlugin = _localNotificationsPlugin
       .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
-  >();
+      >();
   await androidPlugin?.createNotificationChannel(_sosNotificationChannel);
   await androidPlugin?.createNotificationChannel(_hazardNotificationChannel);
 
@@ -98,12 +98,12 @@ Future<void> _initializeForegroundPushNotifications() async {
 
   final initialToken = await messaging.getToken();
   if (initialToken != null) {
-    debugPrint('🔑 [FCM][Startup] Token: $initialToken');
+    debugPrint('🔑 [FCM][Startup] Device token obtained.');
     await _saveTokenToSupabase(initialToken);
   }
 
   messaging.onTokenRefresh.listen((token) {
-    debugPrint('🔑 [FCM][Refresh] Token: $token');
+    debugPrint('🔄 [FCM][Refresh] Device token refreshed.');
     unawaited(_saveTokenToSupabase(token));
   });
 
@@ -113,7 +113,7 @@ Future<void> _initializeForegroundPushNotifications() async {
         data.event == AuthChangeEvent.initialSession) {
       final token = await messaging.getToken();
       if (token != null) {
-        debugPrint('🔑 [FCM][Auth ${data.event.name}] Token: $token');
+        debugPrint('🔑 [FCM][Auth ${data.event.name}] Device token obtained.');
         await _saveTokenToSupabase(token);
       }
     }
@@ -161,8 +161,7 @@ Future<void> _showForegroundNotification(RemoteMessage message) async {
   const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
     'hazard_alerts',
     'Hazard Alerts',
-    channelDescription:
-        'Hazard reports, assignments, and nearby hazard alerts',
+    channelDescription: 'Hazard reports, assignments, and nearby hazard alerts',
     importance: Importance.high,
     priority: Priority.high,
     icon: '@mipmap/ic_launcher',
@@ -192,11 +191,14 @@ Future<void> _saveTokenToSupabase(String token) async {
   }
 
   try {
-    debugPrint('🔑 [FCM][Supabase upsert] Token for ${user.id}: $token');
-    await Supabase.instance.client.from('user_fcm_tokens').upsert({
-      'user_id': user.id,
-      'fcm_token': token,
-    }, onConflict: 'user_id');
+    debugPrint('🔑 [FCM][Supabase RPC] Registering token for ${user.id}');
+
+    await Supabase.instance.client.rpc(
+      'register_fcm_token',
+      params: {'p_token': token},
+    );
+
+    debugPrint('✅ [FCM] Device token registered.');
   } catch (e) {
     debugPrint('Failed to save FCM token: $e');
   }

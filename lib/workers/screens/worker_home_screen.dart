@@ -226,8 +226,15 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen>
     _currentSiteName = (ctx['site_name'] as String?)?.isNotEmpty == true
         ? ctx['site_name'] as String
         : 'No site assigned';
-    _currentSiteId = ctx['site_id'] as String?;
-    _linkedOfficerUid = ctx['officer_uid'] as String?;
+    final cachedSiteId = ctx['site_id']?.toString();
+    final cachedOfficerUid = ctx['officer_uid']?.toString();
+
+    if (cachedSiteId != null && cachedSiteId.isNotEmpty) {
+      _currentSiteId = cachedSiteId;
+    }
+    if (cachedOfficerUid != null && cachedOfficerUid.isNotEmpty) {
+      _linkedOfficerUid = cachedOfficerUid;
+    }
     _contractorsList =
         (ctx['contractors'] as List<dynamic>?)?.cast<String>() ?? [];
     _safetyOfficersList =
@@ -313,61 +320,55 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen>
       // Update in-memory state
       _applyProfile(profile);
 
-      // Fetch context data (site, contractor, HSE) in parallel
-      final siteId = profile['current_site_id']?.toString();
-      final officerUid = profile['officer_uid']?.toString();
+      // Fetch worker site context through the secure server-side RPC.
+      // The RPC derives the worker from auth.uid(), avoiding cross-table
+      // RLS recursion between workers, sites, and hse_workers.
+      final contextResponse = await supabase.rpc('get_my_worker_site_context');
 
       String fetchedSiteName = 'No site assigned';
       List<String> fetchedContractors = [];
       List<String> fetchedSafetyOfficers = [];
 
-      if (officerUid != null && officerUid.isNotEmpty) {
-        final Map<String, dynamic>? contractor = await supabase
-            .from('officers')
-            .select('first_name, last_name')
-            .eq('officer_uid', officerUid)
-            .maybeSingle();
+      String? siteId = profile['current_site_id']?.toString();
+      String? officerUid = profile['officer_uid']?.toString();
 
-        if (contractor != null) {
-          fetchedContractors = [
-            _capitalize(
-              '${contractor['first_name']} ${contractor['last_name']}',
-            ),
-          ];
+      final contextRows = contextResponse is List
+          ? contextResponse
+          : <dynamic>[];
+
+      if (contextRows.isNotEmpty) {
+        final context = Map<String, dynamic>.from(contextRows.first as Map);
+
+        siteId = context['site_id']?.toString() ?? siteId;
+        officerUid = context['officer_uid']?.toString() ?? officerUid;
+
+        final siteName = context['site_name']?.toString();
+        if (siteName != null && siteName.trim().isNotEmpty) {
+          fetchedSiteName = _capitalize(siteName);
+        }
+
+        final contractorName = context['contractor_name']?.toString();
+        if (contractorName != null && contractorName.trim().isNotEmpty) {
+          fetchedContractors = [_capitalize(contractorName)];
+        }
+
+        final safetyOfficers = context['safety_officers'];
+        if (safetyOfficers is List) {
+          fetchedSafetyOfficers = safetyOfficers
+              .where(
+                (name) => name != null && name.toString().trim().isNotEmpty,
+              )
+              .map((name) => _capitalize(name.toString()))
+              .toList();
         }
       }
 
-      if (siteId != null && siteId.isNotEmpty) {
-        final Future<Map<String, dynamic>?> siteFuture = supabase
-            .from('sites')
-            .select('name')
-            .eq('id', siteId)
-            .maybeSingle();
-
-        final Future<List<dynamic>> hseFuture =
-            officerUid != null && officerUid.isNotEmpty
-            ? supabase
-                  .from('hse_workers')
-                  .select('first_name, last_name')
-                  .eq('officer_uid', officerUid)
-                  .eq('current_site_id', siteId)
-            : Future.value(<dynamic>[]);
-
-        final results = await Future.wait([siteFuture, hseFuture]);
-
-        final siteData = results[0] as Map<String, dynamic>?;
-        final hseDataList = results[1] as List<dynamic>? ?? [];
-
-        if (siteData != null) {
-          fetchedSiteName = _capitalize(siteData['name'] as String? ?? '');
-        }
-
-        fetchedSafetyOfficers = hseDataList
-            .map(
-              (hse) => _capitalize('${hse['first_name']} ${hse['last_name']}'),
-            )
-            .toList();
-      }
+      debugPrint(
+        '🔎 [WorkerHome] RPC context loaded: '
+        'site=${fetchedSiteName == 'No site assigned' ? 'none' : 'assigned'}, '
+        'contractors=${fetchedContractors.length}, '
+        'HSE=${fetchedSafetyOfficers.length}',
+      );
 
       // Persist fresh context to cache
       await _authRepository.saveWorkerContext(

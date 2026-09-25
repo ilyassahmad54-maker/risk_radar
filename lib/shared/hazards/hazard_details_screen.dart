@@ -456,7 +456,8 @@ class _HazardDetailsScreenState extends State<HazardDetailsScreen> {
             SizedBox(height: visibleHeight * 0.015),
 
             if (hazardData['id'] != null &&
-                hazardData['sites']?['id'] != null)
+                (hazardData['sites']?['id'] != null ||
+                    hazardData['current_site_id'] != null))
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -475,7 +476,10 @@ class _HazardDetailsScreenState extends State<HazardDetailsScreen> {
                       MaterialPageRoute(
                         builder: (_) => AssignTaskScreen(
                           hazardId: hazardData['id'].toString(),
-                          siteId: hazardData['sites']['id'].toString(),
+                          siteId:
+                              (hazardData['sites']?['id'] ??
+                                      hazardData['current_site_id'])
+                                  .toString(),
                         ),
                       ),
                     );

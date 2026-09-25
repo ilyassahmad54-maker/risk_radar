@@ -77,15 +77,10 @@ class HazardRepository {
   Future<List<Map<String, dynamic>>> _fetchOfficerActiveHazards(
     String userId,
   ) async {
-    final Map<String, dynamic>? officer = await _supabase
-        .from('officers')
-        .select('officer_uid')
-        .eq('id', userId)
-        .maybeSingle();
-    final String? officerUid = officer?['officer_uid']?.toString();
-    if (officerUid == null || officerUid.isEmpty) {
-      return const <Map<String, dynamic>>[];
-    }
+    // Related hazard records use officers.id as their officer_uid
+    // foreign key. The authenticated officer UUID is therefore the
+    // contractor identifier used by hazards and assign_hazards.
+    final String officerUid = userId;
 
     final List<Map<String, dynamic>> reported = await _mapResponseRows(
       _supabase

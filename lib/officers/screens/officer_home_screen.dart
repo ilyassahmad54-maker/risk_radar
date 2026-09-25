@@ -478,7 +478,7 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen>
                   children: [
                     Expanded(
                       child: _buildStatCard(
-                        title: "View All\nHazards",
+                        title: "Active\nHazards",
                         count: activeHazardCount.toString(),
                         icon: Icons.map_rounded,
                         color: const Color(0xFF22D3EE),

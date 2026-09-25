@@ -149,7 +149,7 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen>
     try {
       final officerProfile = await supabase
           .from('officers')
-          .select('first_name, last_name, profile_image_url, officer_uid')
+          .select('first_name, last_name, profile_image_url')
           .eq('id', currentUserId)
           .maybeSingle();
 
@@ -158,17 +158,17 @@ class _OfficerHomeScreenState extends State<OfficerHomeScreen>
             "${_capitalize(officerProfile['first_name'])} ${_capitalize(officerProfile['last_name'])}"
                 .trim();
         cache.officerProfileImageUrl = officerProfile['profile_image_url'];
-        cache.officerUid = officerProfile['officer_uid'];
 
-        if (cache.officerUid != null) {
-          final results = await Future.wait([
-            fetchResolvedHazardsCount(cache.officerUid),
-            fetchTotalSitesCount(cache.officerUid),
-          ]);
+        // Related tables use officers.id as their officer_uid foreign key.
+        cache.officerUid = currentUserId;
 
-          cache.resolvedHazardCount = results[0];
-          cache.totalSitesCount = results[1];
-        }
+        final results = await Future.wait([
+          fetchResolvedHazardsCount(currentUserId),
+          fetchTotalSitesCount(currentUserId),
+        ]);
+
+        cache.resolvedHazardCount = results[0];
+        cache.totalSitesCount = results[1];
       }
       cache.isLoaded = true;
       await OfficerRepository.instance.saveOfficerDashboard({

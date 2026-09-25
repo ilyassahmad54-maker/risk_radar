@@ -142,12 +142,12 @@ class _ResolvedHazardsScreenState extends State<ResolvedHazardsScreen> {
       final int pageStart = _currentPage * _pageSize;
       final int pageEnd = pageStart + _pageSize - 1;
       final currentUserId = supabase.auth.currentUser?.id;
-      final officerData = await supabase
-          .from('officers')
-          .select('officer_uid')
-          .eq('id', currentUserId!)
-          .maybeSingle();
-      final officerUid = officerData?['officer_uid'];
+      if (currentUserId == null) {
+        throw Exception('No authenticated officer found.');
+      }
+
+      // Related tables store officers.id in their officer_uid column.
+      final officerUid = currentUserId;
 
       final response = await supabase
           .from('resolved_hazards')
@@ -157,7 +157,7 @@ class _ResolvedHazardsScreenState extends State<ResolvedHazardsScreen> {
             resolver:assigned_to(first_name, last_name, designation, profile_image_url),
             sites:current_site_id(name)
           ''')
-          .eq('officer_uid', officerUid ?? 0)
+          .eq('officer_uid', officerUid)
           .order('resolved_at', ascending: false)
           .range(pageStart, pageEnd);
 

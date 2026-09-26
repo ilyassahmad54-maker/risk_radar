@@ -508,10 +508,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _selectContractor() async {
     try {
-      final contractors = await Supabase.instance.client
-          .from('officers')
-          .select('id, first_name, last_name, email')
-          .order('first_name');
+      final contractors = await Supabase.instance.client.rpc(
+        'get_contractor_directory',
+      );
 
       if (!mounted) return;
 

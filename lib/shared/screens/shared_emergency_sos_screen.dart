@@ -38,6 +38,7 @@ class _SharedEmergencySOSScreenState extends State<SharedEmergencySOSScreen>
   static const _alarmChannel = MethodChannel('com.example.riskradar/alarm');
 
   bool _isAlerting = false;
+  final List<String> _activeAlertIds = [];
   double _pressProgress = 0.0;
   Timer? _pressTimer;
   Timer? _sirenLoopTimer;
@@ -174,9 +175,7 @@ class _SharedEmergencySOSScreenState extends State<SharedEmergencySOSScreen>
                   : 'Emergency Contact ${index + 1}',
               'number': personalNumbers![index],
               'label':
-                  relationship != null &&
-                      relationship.isNotEmpty &&
-                      index == 0
+                  relationship != null && relationship.isNotEmpty && index == 0
                   ? _capitalize(relationship)
                   : 'Personal Contact',
               'icon': Icons.person,
@@ -416,6 +415,8 @@ class _SharedEmergencySOSScreenState extends State<SharedEmergencySOSScreen>
         'message': message,
       };
 
+      _activeAlertIds.clear();
+
       if (widget.isOfficer && widget.currentSiteId == null) {
         // sites.officer_uid references officers.id. For a contractor,
         // the authenticated user UUID is therefore the managed-site owner ID.
@@ -432,16 +433,26 @@ class _SharedEmergencySOSScreenState extends State<SharedEmergencySOSScreen>
           throw StateError('No managed sites found for this contractor.');
         }
 
-        await supabase.from('site_alerts').insert(
-          sites
-              .map((site) => {...alertData, 'site_id': site['id']})
-              .toList(),
+        final insertedAlerts = await supabase
+            .from('site_alerts')
+            .insert(
+              sites
+                  .map((site) => {...alertData, 'site_id': site['id']})
+                  .toList(),
+            )
+            .select('id');
+
+        _activeAlertIds.addAll(
+          insertedAlerts.map<String>((alert) => alert['id'].toString()),
         );
       } else {
-        await supabase.from('site_alerts').insert({
-          ...alertData,
-          'site_id': widget.currentSiteId,
-        });
+        final insertedAlert = await supabase
+            .from('site_alerts')
+            .insert({...alertData, 'site_id': widget.currentSiteId})
+            .select('id')
+            .single();
+
+        _activeAlertIds.add(insertedAlert['id'].toString());
       }
 
       if (mounted) {
@@ -491,12 +502,47 @@ class _SharedEmergencySOSScreenState extends State<SharedEmergencySOSScreen>
     _startAlarm();
   }
 
-  void _cancelEmergency() {
+  Future<void> _cancelEmergency() async {
+    final alertIds = List<String>.from(_activeAlertIds);
+
     setState(() {
       _isAlerting = false;
       _pressProgress = 0.0;
     });
-    _stopAlarm();
+
+    await _stopAlarm();
+
+    if (alertIds.isEmpty) {
+      return;
+    }
+
+    try {
+      await supabase
+          .from('site_alerts')
+          .update({'status': 'CANCELLED'})
+          .inFilter('id', alertIds);
+
+      _activeAlertIds.clear();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('SOS alert closed successfully.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to close SOS alert: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Alarm stopped locally, but the SOS could not be closed remotely.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override

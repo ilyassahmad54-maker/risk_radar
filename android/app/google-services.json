@@ -1,59 +1,26 @@
 {
   "project_info": {
-    "project_number": "418212768173",
-    "project_id": "riskradar-467315",
-    "storage_bucket": "riskradar-467315.firebasestorage.app"
+    "project_number": "79473522138",
+    "project_id": "riskradar-467315-c4aba",
+    "storage_bucket": "riskradar-467315-c4aba.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:418212768173:android:81cfb56ac613e9f52e5924",
+        "mobilesdk_app_id": "1:79473522138:android:a41979acb27ef9b3debce3",
         "android_client_info": {
           "package_name": "com.example.riskradar"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "418212768173-8ecla7efev8tjaq5c84aitomu2l72hqn.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.riskradar",
-            "certificate_hash": "5efa75cc9d385d786a1994da154d8f689ff29fe2"
-          }
-        },
-        {
-          "client_id": "418212768173-ulmrr6bdrjriu5c47fdptt1s69ciug14.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.riskradar",
-            "certificate_hash": "430dccee706f38f39a027094f269cab897ef31df"
-          }
-        },
-        {
-          "client_id": "418212768173-s3ev6pbkuef7tjebf9upt5rqviothbp4.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBaIKcSpngGPhxkzHLAYJp4e__BggV0aEw"
+          "current_key": "AIzaSyAJrj2hvsjtnOiJGprxWNXCPHZYe8jVg_Y"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "418212768173-s3ev6pbkuef7tjebf9upt5rqviothbp4.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "418212768173-jp2orta7gsf0bgeqbocpkg3td0slntql.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.riskradar"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

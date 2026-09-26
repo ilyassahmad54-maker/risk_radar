@@ -31,10 +31,15 @@ class AppInitializer {
       LoggerService.info('Supabase initialized');
 
       LoggerService.info('Initializing Firebase...');
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      LoggerService.info('Firebase initialized');
+
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        LoggerService.info('Firebase initialized');
+      } else {
+        LoggerService.info('Firebase already initialized');
+      }
 
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       LoggerService.info('Background message handler set');

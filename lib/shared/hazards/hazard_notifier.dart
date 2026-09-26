@@ -59,12 +59,6 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
     } else {
       debugPrint('❌ Could not fetch hazard details for ID: $hazardId');
     }
-  } else if (receivedAction.buttonKeyPressed == 'RESOLVED') {
-    debugPrint(
-      'ℹ️ Handling RESOLVED action for ID: $hazardId in table: $sourceTable',
-    );
-    await updateHazardStatus(hazardId, sourceTable, 'resolved');
-    hazardNotifier.removeNotifiedHazard(hazardId);
   }
 }
 
@@ -250,105 +244,6 @@ Future<Map<String, dynamic>?> fetchFullHazardData(
 }
 
 // =========================================================================
-//                           UPDATE STATUS FUNCTION
-// =========================================================================
-
-/// Update hazard status
-Future<void> updateHazardStatus(
-  String hazardId,
-  String sourceTable,
-  String newStatus,
-) async {
-  final SupabaseClient supabase = Supabase.instance.client;
-  try {
-    // 1. Check if the status is being updated to 'resolved'
-    if (newStatus == 'resolved') {
-      final fullHazard = await supabase
-          .from(sourceTable)
-          .select()
-          .eq('id', hazardId)
-          .single();
-      final newResolvedHazard = {
-        ...fullHazard,
-        'status': 'resolved',
-        'resolved_at': DateTime.now().toIso8601String(),
-        'id': fullHazard['id'],
-      };
-      if (newResolvedHazard.containsKey('officer_uid')) {
-        newResolvedHazard['officer_uid'] = int.tryParse(
-          newResolvedHazard['officer_uid'].toString(),
-        );
-      }
-      await supabase.from('resolved_hazards').insert(newResolvedHazard);
-      await supabase.from(sourceTable).delete().eq('id', hazardId);
-      debugPrint(
-        '✅ Successfully moved and resolved hazard $hazardId from $sourceTable',
-      );
-      return;
-    }
-
-    // 2. If the status is not 'resolved' (e.g., in_progress, reported) just update status
-    await supabase
-        .from(sourceTable)
-        .update({'status': newStatus})
-        .eq('id', hazardId);
-    debugPrint(
-      '✅ Updated status for hazard $hazardId in $sourceTable to $newStatus',
-    );
-  } on PostgrestException catch (e) {
-    debugPrint(
-      '❌ Failed to update hazard status in primary table $sourceTable: ${e.message}',
-    );
-    final String fallbackTable = sourceTable == 'hazards'
-        ? 'assign_hazards'
-        : 'hazards';
-    try {
-      if (newStatus == 'resolved') {
-        final fullHazard = await supabase
-            .from(fallbackTable)
-            .select()
-            .eq('id', hazardId)
-            .single();
-        final newResolvedHazard = {
-          ...fullHazard,
-          'status': 'resolved',
-          'resolved_at': DateTime.now().toIso8601String(),
-          'id': fullHazard['id'],
-        };
-        if (newResolvedHazard.containsKey('officer_uid')) {
-          newResolvedHazard['officer_uid'] = int.tryParse(
-            newResolvedHazard['officer_uid'].toString(),
-          );
-        }
-        await supabase.from('resolved_hazards').insert(newResolvedHazard);
-        await supabase.from(fallbackTable).delete().eq('id', hazardId);
-        debugPrint(
-          '✅ Successfully moved and resolved hazard $hazardId from $fallbackTable (fallback)',
-        );
-      } else {
-        await supabase
-            .from(fallbackTable)
-            .update({'status': newStatus})
-            .eq('id', hazardId);
-        debugPrint(
-          '✅ Updated status for hazard $hazardId in $fallbackTable (fallback) to $newStatus',
-        );
-      }
-    } on PostgrestException catch (e2) {
-      debugPrint(
-        '❌ Failed to update hazard status in both tables. Fallback error: ${e2.message}',
-      );
-    } catch (e2) {
-      debugPrint(
-        '❌ Failed to update hazard status in both tables. General error: $e2',
-      );
-    }
-  } catch (e) {
-    debugPrint('❌ Failed to update hazard status. General error: $e');
-  }
-}
-
-// =========================================================================
 //                           HAZARD NOTIFIER CLASS
 // =========================================================================
 
@@ -480,12 +375,6 @@ class HazardNotifier {
           key: 'NOTED',
           label: 'Noted',
           actionType: ActionType.DismissAction,
-        ),
-        NotificationActionButton(
-          key: 'RESOLVED',
-          label: 'Is Resolved',
-          actionType: ActionType.Default,
-          autoDismissible: true,
         ),
       ],
     );

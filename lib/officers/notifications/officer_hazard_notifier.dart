@@ -1,6 +1,5 @@
 // lib/officers/hazards/officer_hazard_notifier.dart
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:geolocator/geolocator.dart';
@@ -11,10 +10,8 @@ import 'package:riskradar/shared/hazards/hazard_details_screen.dart';
 import 'package:riskradar/shared/navigation/app_navigator.dart';
 import 'package:riskradar/services/app_config.dart';
 import 'package:riskradar/services/repositories/hazard_repository.dart';
-import 'package:riskradar/services/repositories/sync_repository.dart';
 
 final HazardRepository _hazardRepository = HazardRepository();
-final SyncRepository _syncRepository = SyncRepository();
 
 // Notification Model for internal storage
 class OfficerNotification {
@@ -75,9 +72,6 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
         );
       });
     }
-  } else if (receivedAction.buttonKeyPressed == 'RESOLVED') {
-    await updateHazardStatus(hazardId, sourceTable, 'resolved');
-    officerHazardNotifier.removeNotification(hazardId);
   }
 }
 
@@ -243,122 +237,6 @@ Map<String, dynamic> _normaliseOfficerHazard(Map<String, dynamic> rawHazard) {
     'longitude': rawHazard['longitude'],
     'voice_note_url': rawHazard['voice_note_url'] ?? '',
   };
-}
-
-// Update hazard status
-Future<void> updateHazardStatus(
-  String hazardId,
-  String table,
-  String status,
-) async {
-  final supabase = Supabase.instance.client;
-  try {
-    if (status == 'resolved') {
-      final hazard = await supabase
-          .from(table)
-          .select()
-          .eq('id', hazardId)
-          .single();
-      await supabase.from('resolved_hazards').insert({
-        ...hazard,
-        'status': 'resolved',
-        'resolved_at': DateTime.now().toIso8601String(),
-      });
-      await supabase.from(table).delete().eq('id', hazardId);
-    } else {
-      await supabase.from(table).update({'status': status}).eq('id', hazardId);
-    }
-  } on SocketException {
-    await _queueHazardStatusOffline(hazardId, table, status);
-  } catch (e) {
-    debugPrint('Error updating status: $e');
-  }
-}
-
-Future<void> _queueHazardStatusOffline(
-  String hazardId,
-  String table,
-  String status,
-) async {
-  final now = DateTime.now().toIso8601String();
-  if (status == 'resolved') {
-    final hazard = await _findCachedOfficerHazard(hazardId);
-    if (hazard == null) return;
-
-    await _syncRepository.enqueueAction(
-      id: 'officer_notification_resolve_insert_${hazardId}_${DateTime.now().millisecondsSinceEpoch}',
-      table: 'resolved_hazards',
-      action: 'insert',
-      payload: _resolvedHazardPayload(hazard, now),
-    );
-    await _syncRepository.enqueueAction(
-      id: 'officer_notification_resolve_delete_${hazardId}_${DateTime.now().millisecondsSinceEpoch}',
-      table: table,
-      action: 'delete',
-      payload: {'id': hazardId},
-    );
-    await _moveCachedHazardToResolved(hazardId, now);
-    return;
-  }
-
-  await _syncRepository.enqueueAction(
-    id: 'officer_notification_status_${hazardId}_${DateTime.now().millisecondsSinceEpoch}',
-    table: table,
-    action: 'update',
-    payload: {'id': hazardId, 'status': status},
-  );
-}
-
-Map<String, dynamic> _resolvedHazardPayload(
-  Map<String, dynamic> hazard,
-  String resolvedAt,
-) {
-  return {
-    'id': hazard['id'],
-    'worker_id': hazard['worker_id'],
-    'hazard_type': hazard['hazard_type'],
-    'description': hazard['description'],
-    'severity': hazard['severity'],
-    'latitude': hazard['latitude'],
-    'longitude': hazard['longitude'],
-    'status': 'resolved',
-    'created_at': hazard['created_at'],
-    'image_url': hazard['image_url'],
-    'officer_uid': hazard['officer_uid'],
-    'voice_note_url': hazard['voice_note_url'],
-    'current_site_id': hazard['current_site_id'],
-    'assigned_to': hazard['assigned_to'],
-    'assigned_at': hazard['assigned_at'],
-    'started_at': hazard['started_at'],
-    'resolved_at': resolvedAt,
-    'resolution_notes': hazard['resolution_notes'],
-    'resolution_image_url': hazard['resolution_image_url'],
-    'resolution_voice_note_url': hazard['resolution_voice_note_url'],
-    'report_number': hazard['report_number'],
-  };
-}
-
-Future<void> _moveCachedHazardToResolved(
-  String hazardId,
-  String resolvedAt,
-) async {
-  final active = await _hazardRepository.getOfficerActiveHazards() ?? [];
-  final resolved = await _hazardRepository.getOfficerResolvedHazards() ?? [];
-  final index = active.indexWhere(
-    (hazard) => hazard['id']?.toString() == hazardId,
-  );
-  if (index == -1) return;
-
-  final hazard = Map<String, dynamic>.from(active.removeAt(index));
-  hazard['status'] = 'resolved';
-  hazard['resolved_at'] = resolvedAt;
-  resolved.removeWhere((item) => item['id']?.toString() == hazardId);
-  resolved.insert(0, hazard);
-
-  await Future.wait([
-    _hazardRepository.saveOfficerActiveHazards(active),
-    _hazardRepository.saveOfficerResolvedHazards(resolved),
-  ]);
 }
 
 // Main Notifier Class
@@ -579,7 +457,8 @@ class OfficerHazardNotifier extends ChangeNotifier {
   }
 
   Future<void> _publishOfficerLocation(Position pos) async {
-    final officerAuthId = _currentOfficerAuthId ?? supabase.auth.currentUser?.id;
+    final officerAuthId =
+        _currentOfficerAuthId ?? supabase.auth.currentUser?.id;
     if (officerAuthId == null || officerAuthId.isEmpty) return;
 
     final now = DateTime.now();

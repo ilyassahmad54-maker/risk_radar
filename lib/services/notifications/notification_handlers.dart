@@ -57,12 +57,12 @@ class NotificationHandlers {
       final buttonKey = receivedAction.buttonKeyPressed;
       final sourceTable =
           receivedAction.payload?['sourceTable']?.toString() ?? 'hazards';
-      final notificationType =
-          receivedAction.payload?['notificationType']?.toString();
+      final notificationType = receivedAction.payload?['notificationType']
+          ?.toString();
       final notificationTitle = receivedAction.payload?['title']?.toString();
       final notificationBody = receivedAction.payload?['body']?.toString();
-      final notificationSeverity =
-          receivedAction.payload?['severity']?.toString();
+      final notificationSeverity = receivedAction.payload?['severity']
+          ?.toString();
 
       if (hazardId == null) {
         debugPrint('No hazardId in notification payload');
@@ -87,16 +87,6 @@ class NotificationHandlers {
           await _openHazardDetails(hazardData);
         } else {
           debugPrint('Could not fetch hazard details');
-        }
-      } else if (buttonKey == 'RESOLVED') {
-        final success = await NotificationHazardDataService.updateHazardStatus(
-          hazardId,
-          'resolved',
-        );
-        if (success) {
-          debugPrint('Hazard marked as resolved');
-        } else {
-          debugPrint('Failed to mark hazard as resolved');
         }
       }
     } catch (e) {
@@ -137,8 +127,6 @@ class NotificationHandlers {
 }
 
 class NotificationHazardDataService {
-  static final _supabase = Supabase.instance.client;
-
   static Future<Map<String, dynamic>?> fetchHazardData(
     String hazardId, {
     required String preferredSourceTable,
@@ -175,41 +163,6 @@ class NotificationHazardDataService {
     } catch (e) {
       debugPrint('Error fetching hazard data: $e');
       return null;
-    }
-  }
-
-  static Future<bool> updateHazardStatus(
-    String hazardId,
-    String newStatus,
-  ) async {
-    try {
-      final hazardsResult = await _supabase
-          .from('hazards')
-          .update({'status': newStatus})
-          .eq('id', hazardId)
-          .select();
-
-      if (hazardsResult.isNotEmpty) {
-        debugPrint('Updated hazard status in hazards table');
-        return true;
-      }
-
-      final assignResult = await _supabase
-          .from('assign_hazards')
-          .update({'status': newStatus})
-          .eq('id', hazardId)
-          .select();
-
-      if (assignResult.isNotEmpty) {
-        debugPrint('Updated hazard status in assign_hazards table');
-        return true;
-      }
-
-      debugPrint('Hazard not found in either table');
-      return false;
-    } catch (e) {
-      debugPrint('Failed to update hazard status: $e');
-      return false;
     }
   }
 }

@@ -32,7 +32,19 @@ Future<void> _ensureFirebaseInitialized() async {
     return;
   }
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') {
+      rethrow;
+    }
+
+    debugPrint(
+      'Firebase default app was initialized concurrently; continuing.',
+    );
+  }
 }
 
 /// Foreground message handler
@@ -143,7 +155,9 @@ class FirebaseMessagingService {
     }
     if ((data['title']?.toString() ?? message.notification?.title) ==
         'New Hazard Reported!') {
-      debugPrint('Ignoring contractor new-hazard local notification: $hazardId');
+      debugPrint(
+        'Ignoring contractor new-hazard local notification: $hazardId',
+      );
       return;
     }
 

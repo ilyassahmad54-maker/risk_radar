@@ -33,10 +33,20 @@ class AppInitializer {
       LoggerService.info('Initializing Firebase...');
 
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-        LoggerService.info('Firebase initialized');
+        try {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+          LoggerService.info('Firebase initialized');
+        } on FirebaseException catch (e) {
+          if (e.code != 'duplicate-app') {
+            rethrow;
+          }
+
+          LoggerService.info(
+            'Firebase default app was initialized concurrently; continuing.',
+          );
+        }
       } else {
         LoggerService.info('Firebase already initialized');
       }

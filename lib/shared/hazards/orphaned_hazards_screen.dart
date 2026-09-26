@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math' show atan2, cos, pi, sin;
 import 'hazard_details_screen.dart';
+import 'package:riskradar/officers/settings/assigned_tasks_screen.dart';
 
 class OrphanedHazardsScreen extends StatefulWidget {
   const OrphanedHazardsScreen({super.key});
@@ -272,14 +273,6 @@ class _OrphanedHazardsScreenState extends State<OrphanedHazardsScreen> {
     return "North-West";
   }
 
-  Future<void> deleteHazard(dynamic hazardId) async {
-    try {
-      await supabase.from('hazards').delete().eq('id', hazardId);
-    } catch (e) {
-      debugPrint("Error deleting hazard: $e");
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     R.init(context);
@@ -539,59 +532,45 @@ class _OrphanedHazardsScreenState extends State<OrphanedHazardsScreen> {
                                   ),
                                 ),
 
-                              // Delete Chip (Officer only)
+                              // Assign Chip (Officer only)
                               if (isOfficer)
                                 InkWell(
                                   onTap: () async {
-                                    await deleteHazard(hazard['id']);
-                                    fetchOrphanedHazards();
-                                  },
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: R.blockH * 2.5,
-                                      vertical: R.blockV * 0.75,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: Colors.red.withValues(
-                                          alpha: 0.4,
+                                    final hazardId = hazard['id']?.toString();
+                                    final siteId = hazard['current_site_id']
+                                        ?.toString();
+
+                                    if (hazardId == null ||
+                                        hazardId.isEmpty ||
+                                        siteId == null ||
+                                        siteId.isEmpty) {
+                                      if (!context.mounted) return;
+
+                                      ScaffoldMessenger.of(context)
+                                        ..hideCurrentSnackBar()
+                                        ..showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'This hazard cannot be assigned because its site information is missing.',
+                                            ),
+                                          ),
+                                        );
+                                      return;
+                                    }
+
+                                    final assigned = await Navigator.push<bool>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => AssignTaskScreen(
+                                          hazardId: hazardId,
+                                          siteId: siteId,
                                         ),
                                       ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.delete_outline,
-                                          size: 16,
-                                          color: Colors.red,
-                                        ),
-                                        SizedBox(width: R.blockH * 1.067),
-                                        Text(
-                                          "Delete",
-                                          style: TextStyle(
-                                            fontSize: R.blockH * 3.25,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              // Resolved Chip (Officer only)
-                              if (isOfficer)
-                                InkWell(
-                                  onTap: () async {
-                                    final hazardId = hazard['id'];
-                                    await supabase
-                                        .from('hazards')
-                                        .update({'status': 'resolved'})
-                                        .eq('id', hazardId);
-                                    fetchOrphanedHazards();
+                                    );
+
+                                    if (assigned == true && context.mounted) {
+                                      await fetchOrphanedHazards();
+                                    }
                                   },
                                   borderRadius: BorderRadius.circular(20),
                                   child: Container(
@@ -600,12 +579,12 @@ class _OrphanedHazardsScreenState extends State<OrphanedHazardsScreen> {
                                       vertical: R.blockV * 0.75,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.green.withValues(
+                                      color: Colors.orange.withValues(
                                         alpha: 0.15,
                                       ),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: Colors.green.withValues(
+                                        color: Colors.orange.withValues(
                                           alpha: 0.4,
                                         ),
                                       ),
@@ -614,17 +593,17 @@ class _OrphanedHazardsScreenState extends State<OrphanedHazardsScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
-                                          Icons.check_circle_outline,
+                                          Icons.assignment_ind_outlined,
                                           size: 16,
-                                          color: Colors.green,
+                                          color: Colors.orange,
                                         ),
                                         SizedBox(width: R.blockH * 1.067),
                                         Text(
-                                          "Resolved",
+                                          "Assign",
                                           style: TextStyle(
                                             fontSize: R.blockH * 3.25,
                                             fontWeight: FontWeight.w600,
-                                            color: Colors.green,
+                                            color: Colors.orange,
                                           ),
                                         ),
                                       ],

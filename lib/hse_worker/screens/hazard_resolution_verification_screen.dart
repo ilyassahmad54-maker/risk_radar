@@ -235,7 +235,8 @@ class _HazardResolutionVerificationScreenState
           _voiceRecorderKey.currentState?.getAllRecordedFiles() ?? [];
 
       if (!await _isOnline()) {
-        final payload = {
+        // Keep the local cache in the same shape as the database/UI expects.
+        final localPayload = {
           'id': widget.assignmentId,
           'status': 'resolved',
           'resolved_at': resolvedTimestamp,
@@ -244,18 +245,35 @@ class _HazardResolutionVerificationScreenState
           'voice_paths': recordedVoiceFiles.map((file) => file.path).toList(),
         };
 
+        // Queue the secure lifecycle RPC rather than a direct assign_hazards update.
+        //
+        // SyncService will upload image_paths and voice_paths to the
+        // resolutions bucket when connectivity returns, convert them to URLs,
+        // and then call update_hse_hazard_lifecycle.
+        final rpcPayload = {
+          'hazard_id': widget.assignmentId,
+          'new_status': 'resolved',
+          'resolution_notes': resolutionNotes,
+          'image_paths': _selectedImages.map((image) => image.path).toList(),
+          'voice_paths': recordedVoiceFiles.map((file) => file.path).toList(),
+        };
+
         await _syncRepository.enqueueAction(
           id: 'hse_resolution_${widget.assignmentId}_${DateTime.now().millisecondsSinceEpoch}',
-          table: 'assign_hazards',
-          action: 'update',
-          payload: payload,
+          table: 'update_hse_hazard_lifecycle',
+          action: 'rpc',
+          payload: rpcPayload,
         );
-        await _applyResolutionLocally(payload);
+
+        await _applyResolutionLocally(localPayload);
 
         if (mounted) {
           await _showSuccessDialog();
-          if (mounted) Navigator.pop(context, true);
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
         }
+
         return;
       }
 
@@ -315,10 +333,20 @@ class _HazardResolutionVerificationScreenState
             ? voiceNoteUrls.join(',')
             : null,
       };
-      await supabase
-          .from('assign_hazards')
-          .update(updateData)
-          .eq('id', widget.assignmentId);
+      await supabase.rpc(
+        'update_hse_hazard_lifecycle',
+        params: {
+          'p_hazard_id': widget.assignmentId,
+          'p_new_status': 'resolved',
+          'p_resolution_notes': resolutionNotes,
+          'p_resolution_image_url': imageUrls.isNotEmpty
+              ? imageUrls.join(',')
+              : null,
+          'p_resolution_voice_note_url': voiceNoteUrls.isNotEmpty
+              ? voiceNoteUrls.join(',')
+              : null,
+        },
+      );
       await _applyResolutionLocally({'id': widget.assignmentId, ...updateData});
 
       // Success

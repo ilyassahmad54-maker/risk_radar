@@ -530,10 +530,22 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen>
     }
 
     try {
-      await supabase
-          .from('assign_hazards')
-          .update(updateData)
-          .eq('id', assignmentId);
+      if (newStatus == 'in_progress') {
+        await supabase.rpc(
+          'update_hse_hazard_lifecycle',
+          params: {
+            'p_hazard_id': assignmentId,
+            'p_new_status': 'in_progress',
+            'p_resolution_notes': null,
+            'p_resolution_image_url': null,
+            'p_resolution_voice_note_url': null,
+          },
+        );
+      } else {
+        throw StateError(
+          'Resolution must be submitted through the resolution verification screen.',
+        );
+      }
 
       await _updateTaskInLocalCache(assignmentId, updateData);
       if (newStatus == 'resolved') {
@@ -571,15 +583,23 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen>
     String assignmentId,
     Map<String, dynamic> updateData,
   ) async {
-    await _updateTaskInLocalCache(assignmentId, updateData);
-    if (updateData['status'] == 'resolved') {
-      workerHazardNotifier.removeNotification(assignmentId);
+    final status = updateData['status']?.toString();
+
+    if (status != 'in_progress') {
+      throw StateError(
+        'Only task start can be queued from AssignedTasksScreen.',
+      );
     }
+
+    // Keep the offline UI/cache updated immediately.
+    await _updateTaskInLocalCache(assignmentId, updateData);
+
+    // Queue the secure lifecycle RPC for synchronization.
     await _syncRepository.enqueueAction(
-      id: 'hse_status_${assignmentId}_${DateTime.now().millisecondsSinceEpoch}',
-      table: 'assign_hazards',
-      action: 'update',
-      payload: {'id': assignmentId, ...updateData},
+      id: 'hse_start_${assignmentId}_${DateTime.now().millisecondsSinceEpoch}',
+      table: 'update_hse_hazard_lifecycle',
+      action: 'rpc',
+      payload: {'hazard_id': assignmentId, 'new_status': 'in_progress'},
     );
   }
 

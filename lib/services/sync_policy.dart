@@ -21,32 +21,80 @@ class SyncPolicy {
     if (role == null) {
       throw const SyncValidationException('Missing cached user role.');
     }
-    _requireRole(role, {'officer'});
 
     final rawName = item['rpc']?.toString() ?? item['table']?.toString();
     if (rawName == null) {
       throw const SyncValidationException('Missing RPC name.');
     }
-    if (rawName != 'assign_hazard_to_hse') {
-      throw SyncValidationException('Unsupported RPC: $rawName.');
+
+    switch (rawName) {
+      case 'assign_hazard_to_hse':
+        _requireRole(role, {'officer'});
+
+        _rejectUnknownColumns(rawName, payload, {
+          'hazard_id',
+          'assigned_to',
+          'assigned_at',
+        });
+        _requireAll(payload, {'hazard_id', 'assigned_to'});
+
+        return ValidatedRpcAction(
+          name: rawName,
+          params: {
+            'p_hazard_id': payload['hazard_id'],
+            'p_assigned_to': payload['assigned_to'],
+            if (payload['assigned_at'] != null)
+              'p_assigned_at': payload['assigned_at'],
+          },
+        );
+
+      case 'update_hse_hazard_lifecycle':
+        _requireRole(role, {'hse_worker'});
+
+        _rejectUnknownColumns(rawName, payload, {
+          'hazard_id',
+          'new_status',
+          'resolution_notes',
+          'resolution_image_url',
+          'resolution_voice_note_url',
+          'image_paths',
+          'voice_paths',
+        });
+
+        _requireAll(payload, {'hazard_id', 'new_status'});
+
+        final status = payload['new_status']?.toString();
+
+        if (!{'in_progress', 'resolved'}.contains(status)) {
+          throw SyncValidationException(
+            'Unsupported HSE lifecycle status: $status.',
+          );
+        }
+
+        if (status == 'resolved') {
+          final notes = payload['resolution_notes']?.toString().trim() ?? '';
+
+          if (notes.isEmpty) {
+            throw const SyncValidationException(
+              'Resolution notes are required.',
+            );
+          }
+        }
+
+        return ValidatedRpcAction(
+          name: rawName,
+          params: {
+            'p_hazard_id': payload['hazard_id'],
+            'p_new_status': status,
+            'p_resolution_notes': payload['resolution_notes'],
+            'p_resolution_image_url': payload['resolution_image_url'],
+            'p_resolution_voice_note_url': payload['resolution_voice_note_url'],
+          },
+        );
+
+      default:
+        throw SyncValidationException('Unsupported RPC: $rawName.');
     }
-
-    _rejectUnknownColumns(rawName, payload, {
-      'hazard_id',
-      'assigned_to',
-      'assigned_at',
-    });
-    _requireAll(payload, {'hazard_id', 'assigned_to'});
-
-    return ValidatedRpcAction(
-      name: rawName,
-      params: {
-        'p_hazard_id': payload['hazard_id'],
-        'p_assigned_to': payload['assigned_to'],
-        if (payload['assigned_at'] != null)
-          'p_assigned_at': payload['assigned_at'],
-      },
-    );
   }
 
   ValidatedSyncAction validateSyncAction({

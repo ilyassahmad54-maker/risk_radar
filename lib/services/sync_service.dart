@@ -19,12 +19,16 @@ class SyncService {
   final AuthRepository _authRepository = AuthRepository();
   final SyncRepository _syncRepository = SyncRepository();
   final SyncPolicy _syncPolicy = const SyncPolicy();
+
   Completer<void>? _runningCompleter;
   bool _isRunning = false;
 
   Future<SyncResult> run() async {
+    // Acquire the lock before any asynchronous work so multiple
+    // connectivity/lifecycle events cannot process the same queue snapshot.
     if (_isRunning) {
-      final Completer<void>? runningCompleter = _runningCompleter;
+      final runningCompleter = _runningCompleter;
+
       if (runningCompleter != null) {
         try {
           await runningCompleter.future.timeout(const Duration(seconds: 12));
@@ -32,23 +36,32 @@ class SyncService {
           return const SyncResult.skipped(reason: 'already_running');
         }
       }
+
+      return const SyncResult.skipped(reason: 'already_running');
     }
-
-    if (!await _isOnline()) return const SyncResult.skipped(reason: 'offline');
-
-    final queue = await _syncRepository.getPendingActions();
-    if (queue.isEmpty) return const SyncResult.empty();
 
     _isRunning = true;
     _runningCompleter = Completer<void>();
-    var synced = 0;
-    var rejected = 0;
-    var failed = 0;
-    var skipped = 0;
 
     try {
+      if (!await _isOnline()) {
+        return const SyncResult.skipped(reason: 'offline');
+      }
+
+      final queue = await _syncRepository.getPendingActions();
+
+      if (queue.isEmpty) {
+        return const SyncResult.empty();
+      }
+
+      var synced = 0;
+      var rejected = 0;
+      var failed = 0;
+      var skipped = 0;
+
       for (final item in List<Map<String, dynamic>>.from(queue)) {
         final itemResult = await _syncItem(item);
+
         switch (itemResult) {
           case _SyncItemResult.synced:
             synced++;
@@ -64,20 +77,25 @@ class SyncService {
             break;
         }
       }
+
+      return SyncResult(
+        attempted: queue.length,
+        synced: synced,
+        rejected: rejected,
+        failed: failed,
+        skipped: skipped,
+        pending: (await _syncRepository.getPendingActions()).length,
+      );
     } finally {
       _isRunning = false;
-      _runningCompleter?.complete();
-      _runningCompleter = null;
-    }
 
-    return SyncResult(
-      attempted: queue.length,
-      synced: synced,
-      rejected: rejected,
-      failed: failed,
-      skipped: skipped,
-      pending: (await _syncRepository.getPendingActions()).length,
-    );
+      final completer = _runningCompleter;
+      _runningCompleter = null;
+
+      if (completer != null && !completer.isCompleted) {
+        completer.complete();
+      }
+    }
   }
 
   Future<bool> _isOnline() async {
@@ -103,13 +121,21 @@ class SyncService {
 
     try {
       final payload = Map<String, dynamic>.from(rawPayload);
+
       if (item['action']?.toString() == 'rpc') {
-        final operation = _syncPolicy.validateRpcAction(
+        final preparedPayload = await _prepareRpcPayload(
           item: item,
           payload: payload,
+        );
+
+        final operation = _syncPolicy.validateRpcAction(
+          item: item,
+          payload: preparedPayload,
           role: _authRepository.getRole(),
         );
+
         await _supabase.rpc(operation.name, params: operation.params);
+
         await _syncRepository.removeAction(id);
         LoggerService.info('Synced queued RPC $id');
         return _SyncItemResult.synced;
@@ -121,6 +147,7 @@ class SyncService {
         role: _authRepository.getRole(),
         currentUserId: currentUserId,
       );
+
       final dbPayload = await _preparePayload(
         operation.table,
         operation.payload,
@@ -130,17 +157,25 @@ class SyncService {
         case 'insert':
           await _supabase.from(operation.table).insert(dbPayload);
           break;
+
         case 'update':
           final rowId = dbPayload.remove('id') ?? operation.payload['id'];
-          if (rowId == null) throw StateError('Missing id for update');
+          if (rowId == null) {
+            throw StateError('Missing id for update');
+          }
+
           await _supabase
               .from(operation.table)
               .update(dbPayload)
               .eq('id', rowId);
           break;
+
         case 'delete':
           final rowId = dbPayload['id'] ?? operation.payload['id'];
-          if (rowId == null) throw StateError('Missing id for delete');
+          if (rowId == null) {
+            throw StateError('Missing id for delete');
+          }
+
           await _supabase.from(operation.table).delete().eq('id', rowId);
           break;
       }
@@ -156,6 +191,46 @@ class SyncService {
       LoggerService.warning('Sync failed for item $id', e);
       return _SyncItemResult.failed;
     }
+  }
+
+  Future<Map<String, dynamic>> _prepareRpcPayload({
+    required Map<String, dynamic> item,
+    required Map<String, dynamic> payload,
+  }) async {
+    final prepared = Map<String, dynamic>.from(payload);
+
+    final rpcName = item['rpc']?.toString() ?? item['table']?.toString();
+
+    if (rpcName != 'update_hse_hazard_lifecycle') {
+      return prepared;
+    }
+
+    final imagePaths = _stringList(prepared.remove('image_paths'));
+    final voicePaths = _stringList(prepared.remove('voice_paths'));
+
+    if (imagePaths.isNotEmpty) {
+      final imageUrls = await _uploadFiles(
+        paths: imagePaths,
+        bucket: 'resolutions',
+      );
+
+      prepared['resolution_image_url'] = imageUrls.isNotEmpty
+          ? imageUrls.join(',')
+          : null;
+    }
+
+    if (voicePaths.isNotEmpty) {
+      final voiceUrls = await _uploadFiles(
+        paths: voicePaths,
+        bucket: 'resolutions',
+      );
+
+      prepared['resolution_voice_note_url'] = voiceUrls.isNotEmpty
+          ? voiceUrls.join(',')
+          : null;
+    }
+
+    return prepared;
   }
 
   Future<Map<String, dynamic>> _preparePayload(
@@ -185,9 +260,7 @@ class SyncService {
             : table == 'assign_hazards'
             ? 'resolutions'
             : 'hazard-images',
-        prefix: isProfileTable
-            ? _supabase.auth.currentUser?.id
-            : null,
+        prefix: isProfileTable ? _supabase.auth.currentUser?.id : null,
       );
       dbPayload[isProfileTable
           ? 'profile_image_url'

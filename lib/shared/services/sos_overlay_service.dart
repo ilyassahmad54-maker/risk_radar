@@ -12,17 +12,18 @@ class SosOverlayService {
     if (_isShowing) {
       return;
     }
+
     _isShowing = true;
 
-    final context = await _waitForContext();
-    if (context == null) {
-      debugPrint('SOS overlay skipped: navigator context not ready.');
+    final navigator = await _waitForNavigator();
+    if (navigator == null) {
+      debugPrint('SOS overlay skipped: navigator not ready.');
       _isShowing = false;
       return;
     }
 
     try {
-      await Navigator.of(context, rootNavigator: true).push(
+      await navigator.push(
         MaterialPageRoute<void>(
           builder: (_) => SosAcknowledgeScreen(payload: payload),
           fullscreenDialog: true,
@@ -36,16 +37,17 @@ class SosOverlayService {
     }
   }
 
-  static Future<BuildContext?> _waitForContext() async {
+  static Future<NavigatorState?> _waitForNavigator() async {
     for (var i = 0; i < 12; i++) {
-      final context =
-          navigatorKey.currentState?.overlay?.context ??
-          navigatorKey.currentContext;
-      if (context != null) {
-        return context;
+      final navigator = navigatorKey.currentState;
+
+      if (navigator != null) {
+        return navigator;
       }
+
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
+
     return null;
   }
 }

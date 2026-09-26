@@ -72,7 +72,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen>
   int _activeHazardCount = 0;
 
   // ── SOS / location IDs ────────────────────────────────────────────────────
-  String? _currentWorkerId;
   String? _currentSiteId;
   String? _linkedOfficerUid;
   DateTime _resolvedTitleDate = DateTime.now();
@@ -183,7 +182,6 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen>
   Future<void> _loadAllData() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
-    _currentWorkerId = userId;
 
     // ── Step 1: Paint from cache immediately ──────────────────────────────
     final cachedProfile = _authRepository.getWorkerProfile();

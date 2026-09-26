@@ -37,7 +37,6 @@ class _WorkerResolvedHazardsScreenState
 
   // loading = true only when there is zero cache to show
   bool loading = true;
-  bool _isRefreshing = false;
   bool _isLoadingMore = false;
   bool _hasMoreHazards = true;
   int _currentPage = 0;
@@ -130,7 +129,6 @@ class _WorkerResolvedHazardsScreenState
     if (resetPagination) {
       _currentPage = 0;
       _hasMoreHazards = true;
-      setState(() => _isRefreshing = true);
     }
 
     final userId = supabase.auth.currentUser?.id;
@@ -138,7 +136,6 @@ class _WorkerResolvedHazardsScreenState
       if (mounted) {
         setState(() {
           loading = false;
-          _isRefreshing = false;
           _isLoadingMore = false;
         });
       }
@@ -169,7 +166,6 @@ class _WorkerResolvedHazardsScreenState
           _hasMoreHazards = rows.length == _pageSize;
           _filterHazardsByDate(_selectedDate);
           loading = false;
-          _isRefreshing = false;
           _isLoadingMore = false;
         });
       }
@@ -178,7 +174,6 @@ class _WorkerResolvedHazardsScreenState
       if (mounted) {
         setState(() {
           loading = false;
-          _isRefreshing = false;
           _isLoadingMore = false;
         });
       }
@@ -187,7 +182,6 @@ class _WorkerResolvedHazardsScreenState
       if (mounted) {
         setState(() {
           loading = false;
-          _isRefreshing = false;
           _isLoadingMore = false;
         });
       }
@@ -473,9 +467,7 @@ class _WorkerResolvedHazardsScreenState
             width: size.width * 0.045,
             child: Padding(
               padding: EdgeInsets.only(top: visibleHeight * 0.025),
-              child: CustomPaint(
-                painter: DashedLinePainter(color: lineColor),
-              ),
+              child: CustomPaint(painter: DashedLinePainter(color: lineColor)),
             ),
           ),
           SizedBox(width: size.width * 0.006),
@@ -626,7 +618,10 @@ class _WorkerResolvedHazardsScreenState
                     ],
                     Spacer(),
                     Transform.translate(
-                      offset: Offset(size.width * 0.0, -(visibleHeight * 0.006)),
+                      offset: Offset(
+                        size.width * 0.0,
+                        -(visibleHeight * 0.006),
+                      ),
                       child: SizedBox(
                         height: visibleHeight * 0.035,
                         width: size.width * 0.075,
@@ -634,7 +629,8 @@ class _WorkerResolvedHazardsScreenState
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Theme.of(context).brightness ==
+                              color:
+                                  Theme.of(context).brightness ==
                                       Brightness.dark
                                   ? Colors.white.withValues(alpha: 0.5)
                                   : Colors.black,

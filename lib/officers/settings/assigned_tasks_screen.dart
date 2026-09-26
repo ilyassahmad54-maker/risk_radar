@@ -193,26 +193,14 @@ class _AssignTaskScreenState extends State<AssignTaskScreen> {
 
     try {
       final assignedAt = DateTime.now().toIso8601String();
-      if (widget.isReassigning) {
-        // This query is now correct because widget.hazardId is a String.
-        await supabase
-            .from('assign_hazards')
-            .update({
-              'assigned_to': _selectedWorkerId,
-              'assigned_at': assignedAt,
-              'status': 'assigned',
-            })
-            .eq('id', widget.hazardId);
-      } else {
-        await supabase.rpc(
-          'assign_hazard_to_hse',
-          params: {
-            'p_hazard_id': widget.hazardId,
-            'p_assigned_to': _selectedWorkerId,
-            'p_assigned_at': assignedAt,
-          },
-        );
-      }
+      await supabase.rpc(
+        'assign_hazard_to_hse',
+        params: {
+          'p_hazard_id': widget.hazardId,
+          'p_assigned_to': _selectedWorkerId,
+          'p_assigned_at': assignedAt,
+        },
+      );
       await _updateCachedAssignment(assignedAt);
 
       if (mounted) {

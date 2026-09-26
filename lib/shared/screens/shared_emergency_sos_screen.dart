@@ -517,10 +517,12 @@ class _SharedEmergencySOSScreenState extends State<SharedEmergencySOSScreen>
     }
 
     try {
-      await supabase
-          .from('site_alerts')
-          .update({'status': 'CANCELLED'})
-          .inFilter('id', alertIds);
+      for (final alertId in alertIds) {
+        await supabase.rpc(
+          'cancel_site_alert',
+          params: {'p_alert_id': alertId},
+        );
+      }
 
       _activeAlertIds.clear();
 

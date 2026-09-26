@@ -41,13 +41,10 @@ class _SosAcknowledgeScreenState extends State<SosAcknowledgeScreen> {
 
     if (alertId != null && alertId.isNotEmpty && userId != null) {
       try {
-        await Supabase.instance.client
-            .from('site_alerts')
-            .update({
-              'acknowledged_at': DateTime.now().toUtc().toIso8601String(),
-              'acknowledged_by': userId,
-            })
-            .eq('id', alertId);
+        await Supabase.instance.client.rpc(
+          'acknowledge_site_alert',
+          params: {'p_alert_id': alertId},
+        );
       } catch (e) {
         debugPrint('SOS acknowledge update failed: $e');
       }

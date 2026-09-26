@@ -185,17 +185,14 @@ class SyncPolicy {
 
     switch (table) {
       case 'hazards':
+        // Workers may create new hazard reports while offline.
+        // Hazard assignment and lifecycle mutations must use secured RPCs.
         if (action == 'insert') return Hazard.hazardInsertColumns;
-        if (action == 'update') return Hazard.hazardStatusUpdateColumns;
-        if (action == 'delete') return {'id'};
         break;
       case 'assign_hazards':
-        if (action == 'insert') return Hazard.assignHazardInsertColumns;
-        if (action == 'update') return Hazard.assignHazardUpdateColumns;
-        if (action == 'delete') return {'id'};
-        break;
       case 'resolved_hazards':
-        if (action == 'insert') return Hazard.assignHazardInsertColumns;
+        // Direct queued lifecycle mutations are intentionally blocked.
+        // Use assign_hazard_to_hse or update_hse_hazard_lifecycle instead.
         break;
       case 'sites':
         if ({'insert', 'update'}.contains(action)) return siteColumns;

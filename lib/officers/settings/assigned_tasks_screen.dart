@@ -260,13 +260,12 @@ class _AssignTaskScreenState extends State<AssignTaskScreen> {
     if (widget.isReassigning) {
       await _syncRepository.enqueueAction(
         id: 'officer_reassign_${widget.hazardId}_${DateTime.now().millisecondsSinceEpoch}',
-        table: 'assign_hazards',
-        action: 'update',
+        table: 'assign_hazard_to_hse',
+        action: 'rpc',
         payload: {
-          'id': widget.hazardId,
+          'hazard_id': widget.hazardId,
           'assigned_to': _selectedWorkerId,
           'assigned_at': now,
-          'status': 'assigned',
         },
       );
       await _updateCachedAssignment(now);

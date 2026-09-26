@@ -305,6 +305,21 @@ class HazardRepository {
     );
   }
 
+  Future<void> unmarkHseTasksResolvedLocally(Iterable<String> taskIds) async {
+    final Set<String> resolvedIds = await getHseLocallyResolvedTaskIds();
+
+    final Set<String> idsToRemove = taskIds
+        .where((String taskId) => taskId.trim().isNotEmpty)
+        .toSet();
+
+    resolvedIds.removeWhere(idsToRemove.contains);
+
+    await _cacheStore.writeJson(
+      _hseLocallyResolvedTaskIdsKey,
+      resolvedIds.toList(growable: false),
+    );
+  }
+
   Future<Set<String>> getHseLocallyResolvedTaskIds() async {
     final String? rawIds = _cacheStore.readString(
       _hseLocallyResolvedTaskIdsKey,

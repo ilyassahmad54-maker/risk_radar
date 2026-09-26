@@ -229,18 +229,60 @@ class _HseWorkerResolutionFormScreenState
     try {
       await _syncRepository.enqueueAction(
         id: actionId,
-        table: 'assign_hazards',
-        action: 'update',
-        payload: payload,
+        table: 'update_hse_hazard_lifecycle',
+        action: 'rpc',
+        payload: {
+          'hazard_id': assignmentId,
+          'new_status': 'resolved',
+          'resolution_notes': resolutionNotes,
+          'image_paths': _selectedPhotos
+              .map((XFile photo) => photo.path)
+              .toList(),
+          'voice_paths': voiceFiles.map((File file) => file.path).toList(),
+        },
       );
 
       await _applyResolutionLocally(payload);
+
       SyncResult syncResult = await SyncService.instance.run();
       bool actionStillPending = await _isActionPending(actionId);
 
       if (actionStillPending && syncResult.reason != 'offline') {
-        syncResult = await SyncService.instance.run();
+        final SyncResult retryResult = await SyncService.instance.run();
+
+        syncResult = SyncResult(
+          attempted: syncResult.attempted + retryResult.attempted,
+          synced: syncResult.synced + retryResult.synced,
+          rejected: syncResult.rejected + retryResult.rejected,
+          failed: syncResult.failed + retryResult.failed,
+          skipped: syncResult.skipped + retryResult.skipped,
+          pending: retryResult.pending,
+          reason: retryResult.reason ?? syncResult.reason,
+        );
+
         actionStillPending = await _isActionPending(actionId);
+      }
+
+      final bool rejected = syncResult.rejected > 0;
+      final bool synced = syncResult.synced > 0 && !actionStillPending;
+
+      // Rejected actions are removed from the queue by SyncService.
+      // Queue disappearance therefore cannot be treated as proof of success.
+      if (rejected || (!synced && !actionStillPending)) {
+        await _restoreResolutionLocally();
+
+        if (!mounted) {
+          return;
+        }
+
+        setState(() => _isSubmitting = false);
+
+        _showErrorSnack(
+          rejected
+              ? 'Resolution was rejected and was not saved. Please try again.'
+              : 'Resolution could not be synchronized. Please try again.',
+        );
+        return;
       }
 
       if (!mounted) {
@@ -248,10 +290,12 @@ class _HseWorkerResolutionFormScreenState
       }
 
       setState(() => _isSubmitting = false);
+
       final bool savedLocally = actionStillPending;
       final String snackMessage = savedLocally
           ? 'Resolution saved offline. It will sync when online.'
           : 'Resolution submitted successfully.';
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(snackMessage),
@@ -260,11 +304,12 @@ class _HseWorkerResolutionFormScreenState
               : AppColors.brandTeal,
         ),
       );
+
       Navigator.pop(context, <String, Object>{
         'resolved': true,
         'assignment_id': assignmentId,
         'action_id': actionId,
-        'synced': !savedLocally,
+        'synced': synced,
       });
     } catch (e, s) {
       LoggerService.error('[HSE Resolution] Submit failed', e, s);
@@ -325,6 +370,45 @@ class _HseWorkerResolutionFormScreenState
           _taskIdentifiers(task).any(resolvedIdentifiers.contains),
     );
     resolvedTasks.insert(0, resolvedTask);
+    await _hazardRepository.saveHseResolvedHazards(resolvedTasks);
+  }
+
+  Future<void> _restoreResolutionLocally() async {
+    final Set<String> resolvedIdentifiers = _resolvedTaskIdentifiers();
+
+    // Remove the optimistic resolved marker first. saveHseAssignedTasks()
+    // filters rows carrying locally-resolved identifiers.
+    await _hazardRepository.unmarkHseTasksResolvedLocally(resolvedIdentifiers);
+
+    final List<Map<String, Object?>> activeTasks =
+        (await _hazardRepository.getHseAssignedTasks() ??
+                <Map<String, Object?>>[])
+            .map((row) => Map<String, Object?>.from(row))
+            .toList();
+
+    activeTasks.removeWhere(
+      (Map<String, Object?> task) =>
+          _taskIdentifiers(task).any(resolvedIdentifiers.contains),
+    );
+
+    final Map<String, Object?> restoredTask = Map<String, Object?>.from(
+      widget.hazard.toAssignHazardsMap(),
+    );
+
+    activeTasks.insert(0, restoredTask);
+    await _hazardRepository.saveHseAssignedTasks(activeTasks);
+
+    final List<Map<String, Object?>> resolvedTasks =
+        (await _hazardRepository.getHseResolvedHazards() ??
+                <Map<String, Object?>>[])
+            .map((row) => Map<String, Object?>.from(row))
+            .toList();
+
+    resolvedTasks.removeWhere(
+      (Map<String, Object?> task) =>
+          _taskIdentifiers(task).any(resolvedIdentifiers.contains),
+    );
+
     await _hazardRepository.saveHseResolvedHazards(resolvedTasks);
   }
 
@@ -442,9 +526,7 @@ class _HseWorkerResolutionFormScreenState
     final Size size = mediaQuery.size;
     final double visibleHeight =
         size.height - mediaQuery.padding.top - mediaQuery.padding.bottom;
-    final Color cardColor = isDark
-        ? const Color(0xFF4A4A4A)
-        : Colors.white;
+    final Color cardColor = isDark ? const Color(0xFF4A4A4A) : Colors.white;
     final String hazardType = widget.hazard.hazardType ?? 'General Hazard';
     final String severity = widget.hazard.severity ?? 'Unknown severity';
     final String description =
@@ -773,9 +855,7 @@ class _HseWorkerResolutionFormScreenState
     final Size size = mediaQuery.size;
     final double visibleHeight =
         size.height - mediaQuery.padding.top - mediaQuery.padding.bottom;
-    final Color cardColor = isDark
-        ? const Color(0xFF4A4A4A)
-        : Colors.white;
+    final Color cardColor = isDark ? const Color(0xFF4A4A4A) : Colors.white;
     final Color sectionIconColor = isDark
         ? AppColors.accentGold
         : AppColors.brandTeal;

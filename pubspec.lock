@@ -691,10 +691,9 @@ packages:
   flutter_vibrate:
     dependency: "direct main"
     description:
-      name: flutter_vibrate
-      sha256: "6eea0e94dd7dc8c7872e994a1139d55a8640e32fd5898ff59ee8bd53b8dea3b3"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/flutter_vibrate"
+      relative: true
+    source: path
     version: "1.4.0"
   flutter_web_plugins:
     dependency: transitive

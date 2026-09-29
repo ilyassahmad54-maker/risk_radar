@@ -282,11 +282,21 @@ class _HSEWorkerHomeScreenState extends State<HSEWorkerHomeScreen>
               : Future.value(0);
 
           final Future<Map<String, dynamic>?> officerFuture = officerUid != null
-              ? supabase
-                    .from('officers')
-                    .select('id, first_name, last_name')
-                    .eq('id', officerUid)
-                    .maybeSingle()
+              ? supabase.rpc('get_contractor_directory').then((
+                  dynamic response,
+                ) {
+                  final contractors = List<Map<String, dynamic>>.from(
+                    response as List,
+                  );
+
+                  for (final contractor in contractors) {
+                    if (contractor['id']?.toString() == officerUid.toString()) {
+                      return contractor;
+                    }
+                  }
+
+                  return null;
+                })
               : Future.value(null);
 
           final secondBatch = await Future.wait([

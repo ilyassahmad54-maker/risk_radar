@@ -13,10 +13,7 @@ import 'package:riskradar/shared/hazards/resolved_hazard_report_screen.dart';
 class HSEWorkerResolvedHazardsScreen extends StatefulWidget {
   final ValueChanged<DateTime>? onSelectedDateChanged;
 
-  const HSEWorkerResolvedHazardsScreen({
-    super.key,
-    this.onSelectedDateChanged,
-  });
+  const HSEWorkerResolvedHazardsScreen({super.key, this.onSelectedDateChanged});
 
   @override
   State<HSEWorkerResolvedHazardsScreen> createState() =>
@@ -265,16 +262,12 @@ class _HSEWorkerResolvedHazardsScreenState
         final dateStr = hazard['resolved_at'] ?? hazard['created_at'];
         if (dateStr == null) return false;
 
-        DateTime hazardDate;
-        if (dateStr.toString().endsWith('Z')) {
-          hazardDate = DateTime.parse(dateStr).toLocal();
-        } else {
-          hazardDate = DateTime.parse(dateStr).toUtc().toLocal();
-        }
+        final DateTime hazardDate = _parseDate(dateStr);
+        final DateTime selectedDate = date.toLocal();
 
-        return hazardDate.year == date.year &&
-            hazardDate.month == date.month &&
-            hazardDate.day == date.day;
+        return hazardDate.year == selectedDate.year &&
+            hazardDate.month == selectedDate.month &&
+            hazardDate.day == selectedDate.day;
       }).toList();
     });
   }
@@ -682,7 +675,10 @@ class _HSEWorkerResolvedHazardsScreenState
 
                     Spacer(),
                     Transform.translate(
-                      offset: Offset(size.width * 0.0, -(visibleHeight * 0.018)),
+                      offset: Offset(
+                        size.width * 0.0,
+                        -(visibleHeight * 0.018),
+                      ),
                       child: SizedBox(
                         height: visibleHeight * 0.035,
                         width: size.width * 0.075,

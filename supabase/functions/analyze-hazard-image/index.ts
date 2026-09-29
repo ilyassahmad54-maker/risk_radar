@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const modelName = "gemini-2.5-flash";
+const modelName = "gemini-3.5-flash-lite";
 
 const hazardResponseSchema = {
   type: "OBJECT",
@@ -87,7 +87,7 @@ Guidelines:
 4. Focus strictly on PPE, Working at Heights, Electrical, Fire Safety, Heavy Machinery, and Housekeeping.
 `;
 
-    const geminiResponse = await fetch(
+    const geminiResponse = await fetchGeminiWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
       {
         method: "POST",
@@ -175,7 +175,7 @@ Malformed JSON:
 ${rawText}
 `;
 
-    const repairResponse = await fetch(
+    const repairResponse = await fetchGeminiWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
       {
         method: "POST",
@@ -241,6 +241,53 @@ function validateResult(result: unknown) {
   if (typeof data.summary !== "string") {
     throw new Error("AI response is missing summary.");
   }
+}
+
+
+async function fetchGeminiWithRetry(
+  url: string,
+  options: RequestInit,
+): Promise<Response> {
+  const maxAttempts = 3;
+  const retryableStatuses = [408, 429, 500, 502, 503, 504];
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      if (
+        response.ok ||
+        !retryableStatuses.includes(response.status) ||
+        attempt === maxAttempts
+      ) {
+        return response;
+      }
+
+      const waitMs = 1000 * Math.pow(2, attempt - 1);
+
+      console.log(
+        `Gemini temporary failure ${response.status}. ` +
+        `Retrying after ${waitMs}ms (${attempt}/${maxAttempts})`,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+
+      const waitMs = 1000 * Math.pow(2, attempt - 1);
+
+      console.log(
+        `Gemini network error. Retrying after ${waitMs}ms ` +
+        `(${attempt}/${maxAttempts})`,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  }
+
+  throw new Error("Gemini request failed after retries.");
 }
 
 function jsonResponse(body: unknown, status: number) {

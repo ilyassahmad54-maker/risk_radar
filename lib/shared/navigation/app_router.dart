@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../auth/auth_wrapper.dart';
 import '../../auth/login_screen.dart';
+import '../../auth/reset_password_screen.dart';
 import '../../auth/signup_screen.dart';
 import '../../officers/settings/edit_officer_profile_screen.dart';
 import '../../officers/settings/officer_view_profile_screen.dart';
@@ -23,6 +24,7 @@ class AppRouter {
       ),
       '/login': (_) => const LoginScreen(),
       '/signup': (_) => const SignupScreen(),
+      '/reset-password': (_) => const ResetPasswordScreen(),
       '/profile-setup': (_) => const ProfileSetupScreen(),
       '/officer-profile-setup': (_) => const EditOfficerProfileScreen(),
       '/officer-view-profile': (_) => const OfficerViewProfileScreen(),

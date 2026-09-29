@@ -238,8 +238,23 @@ class SyncService {
     Map<String, dynamic> payload,
   ) async {
     final dbPayload = Map<String, dynamic>.from(payload);
+    // Normalize legacy/UI severity values to the database schema.
+    if (table == 'hazards') {
+      final severity = dbPayload['severity']?.toString().trim().toLowerCase();
+
+      if (severity == 'moderate' || severity == 'medium') {
+        dbPayload['severity'] = 'Medium';
+      } else if (severity == 'critical') {
+        dbPayload['severity'] = 'Critical';
+      } else if (severity == 'high') {
+        dbPayload['severity'] = 'High';
+      } else if (severity == 'low') {
+        dbPayload['severity'] = 'Low';
+      }
+    }
 
     final imagePaths = _stringList(dbPayload.remove('image_paths'));
+
     final voicePaths = _stringList(dbPayload.remove('voice_paths'));
     if (table == 'assign_hazards' && dbPayload.containsKey('report_number')) {
       final int? reportNumber = _reportNumber(dbPayload['report_number']);

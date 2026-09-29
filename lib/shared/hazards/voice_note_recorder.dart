@@ -168,7 +168,13 @@ class VoiceNoteRecorderState extends State<VoiceNoteRecorder> {
       _currentRecordingDuration = Duration.zero;
       _isRecordingPaused = false;
     });
-    await _recorder.startRecorder(toFile: path, codec: Codec.aacMP4);
+    await _recorder.startRecorder(
+      toFile: path,
+      codec: Codec.aacMP4,
+      sampleRate: 44100,
+      bitRate: 128000,
+      numChannels: 1,
+    );
     _startRecordingClock();
     if (!mounted) return;
     setState(() => _isRecording = true);

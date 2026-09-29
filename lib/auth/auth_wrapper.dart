@@ -30,7 +30,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:riskradar/utils/responsive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:app_links/app_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'login_screen.dart';
@@ -92,11 +91,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   // ── Internal ───────────────────────────────────────────────────────────────
   late final StreamSubscription<AuthState> _authSub;
-  late final AppLinks _appLinks;
 
   // ── Constants ──────────────────────────────────────────────────────────────
-  static const String _allowedScheme = 'hazardreporter';
-  static const String _allowedHost = 'login-callback';
   static const Duration _roleTimeout = Duration(seconds: 10);
   static const Duration _fcmTimeout = Duration(seconds: 5);
 
@@ -111,7 +107,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _session = Supabase.instance.client.auth.currentSession;
 
     _listenToAuthChanges();
-    _initDeepLinking();
     _listenForFcmTokenRefresh();
 
     // ── BOOT SEQUENCE ──────────────────────────────────────────────────────
@@ -352,10 +347,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (!mounted) return;
 
       final newSession = data.session;
+      final isPasswordRecovery = data.event == AuthChangeEvent.passwordRecovery;
       final isNewLogin = newSession != null && _session == null;
       final isLogout = newSession == null && _session != null;
 
       setState(() => _session = newSession);
+
+      if (isPasswordRecovery) {
+        debugPrint('🔐 [Auth] Password recovery session detected.');
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/reset-password', (route) => false);
+        });
+
+        return;
+      }
 
       if (isNewLogin) {
         debugPrint('🔑 [Auth] New login detected.');
@@ -528,44 +538,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return 'hse_workers';
       default:
         return null;
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // DEEP LINKING — unchanged from original
-  // ══════════════════════════════════════════════════════════════════════════
-
-  Future<void> _initDeepLinking() async {
-    _appLinks = AppLinks();
-    try {
-      final uri = await _appLinks.getInitialLink();
-      if (uri != null && _isValidDeepLink(uri)) {
-        await _handleDeepLink(uri);
-      }
-    } catch (e) {
-      debugPrint('⚠️ [DeepLink] Init error: $e');
-    }
-
-    _appLinks.uriLinkStream.listen((uri) {
-      if (_isValidDeepLink(uri)) {
-        _handleDeepLink(uri);
-      } else {
-        debugPrint('🚫 [DeepLink] Rejected invalid link: $uri');
-      }
-    });
-  }
-
-  bool _isValidDeepLink(Uri uri) =>
-      uri.scheme == _allowedScheme && uri.host == _allowedHost;
-
-  Future<void> _handleDeepLink(Uri uri) async {
-    try {
-      debugPrint('🔗 [DeepLink] Auth callback received: $uri');
-      debugPrint(
-        '🔐 [DeepLink] Letting Supabase auth state listener handle the session.',
-      );
-    } catch (e) {
-      debugPrint('⚠️ [DeepLink] Handle error: $e');
     }
   }
 

@@ -16,7 +16,7 @@ class HazardService {
             'analyze-hazard-image',
             body: {'imageBase64': imageBase64, 'mimeType': mimeType},
           )
-          .timeout(const Duration(seconds: 45));
+          .timeout(const Duration(seconds: 90));
     } on FunctionException catch (error) {
       final details = error.details;
       if (details is Map && details['detail'] != null) {

@@ -192,7 +192,7 @@ class _AssignTaskScreenState extends State<AssignTaskScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final assignedAt = DateTime.now().toIso8601String();
+      final assignedAt = DateTime.now().toUtc().toIso8601String();
       await supabase.rpc(
         'assign_hazard_to_hse',
         params: {
@@ -255,7 +255,7 @@ class _AssignTaskScreenState extends State<AssignTaskScreen> {
   }
 
   Future<void> _queueAssignmentOffline() async {
-    final now = DateTime.now().toIso8601String();
+    final now = DateTime.now().toUtc().toIso8601String();
 
     if (widget.isReassigning) {
       await _syncRepository.enqueueAction(

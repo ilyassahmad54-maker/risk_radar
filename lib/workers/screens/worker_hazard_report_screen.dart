@@ -232,6 +232,17 @@ class _WorkerReportHazardScreenState extends State<WorkerReportHazardScreen> {
     return 'Low';
   }
 
+  String _severityForDatabase(String value) {
+    final normalized = value.trim().toLowerCase();
+
+    if (normalized == 'critical') return 'Critical';
+    if (normalized == 'high') return 'High';
+    if (normalized == 'medium' || normalized == 'moderate') return 'Medium';
+    if (normalized == 'low') return 'Low';
+
+    return 'Low';
+  }
+
   String _cleanReportDescription(String value) {
     return InputSanitizer.cleanText(
       value.replaceAll(RegExp(r'[\[\]{}"]'), ''),
@@ -400,7 +411,7 @@ class _WorkerReportHazardScreenState extends State<WorkerReportHazardScreen> {
           'current_site_id': _currentSiteId,
           'hazard_type': _selectedHazardTypes.join(', '),
           'description': description,
-          'severity': _severity,
+          'severity': _severityForDatabase(_severity),
           'latitude': _currentPosition!.latitude,
           'longitude': _currentPosition!.longitude,
           'status': 'reported',
@@ -501,7 +512,7 @@ class _WorkerReportHazardScreenState extends State<WorkerReportHazardScreen> {
         'current_site_id': _currentSiteId,
         'hazard_type': _selectedHazardTypes.join(', '),
         'description': description,
-        'severity': _severity,
+        'severity': _severityForDatabase(_severity),
         'latitude': _currentPosition!.latitude,
         'longitude': _currentPosition!.longitude,
         'status': 'reported',

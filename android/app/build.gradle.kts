@@ -90,6 +90,7 @@ android {
 }
 
 dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // ✅ Kotlin DSL for desugaring library
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }

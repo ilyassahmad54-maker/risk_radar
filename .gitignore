@@ -66,3 +66,6 @@ android/build/reports/
 
 # Local VS Code settings
 .vscode/
+
+android/key.properties
+android/app/*.jks
